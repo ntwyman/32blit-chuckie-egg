@@ -33,7 +33,7 @@ blit_metadata (${PROJECT_NAME} metadata.yml)
 # (Overrides the SDK's EXPORTED_RUNTIME_METHODS, so its entries are repeated.)
 if(EMSCRIPTEN)
   target_link_options(${PROJECT_NAME} PRIVATE
-    "-sEXPORTED_RUNTIME_METHODS=addRunDependency,removeRunDependency,FS,IDBFS")
+    "-sEXPORTED_RUNTIME_METHODS=['addRunDependency','removeRunDependency','FS','IDBFS']")
 endif()
 add_custom_target (flash DEPENDS ${PROJECT_NAME}.flash)
 
