@@ -1,0 +1,44 @@
+{
+  "name": "32blit",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "SDK_REF": "master",
+      "TOOLS_REF": "main",
+      "PICO_SDK_REF": "master",
+      "PICOVISION_REF": "03df7694ed4fb396c1d12adf90d0150ada6baedc",
+      // Set to "false" to skip Emscripten (web builds) and save ~1GB
+      "INSTALL_EMSDK": "true",
+      "EMSDK_VERSION": "latest"
+    }
+  },
+  "remoteUser": "vscode",
+
+  // Keep Claude Code's and gh's logins and settings across container rebuilds
+  "mounts": [
+    "source=32blit-claude-config,target=/home/vscode/.claude,type=volume",
+    "source=32blit-gh-config,target=/home/vscode/.config/gh,type=volume"
+  ],
+
+  // Web builds can be served with `python3 -m http.server` from the build dir
+  "forwardPorts": [8000],
+
+  // To flash a 32Blit from a Linux host, pass the serial device through, e.g.
+  // "runArgs": ["--device=/dev/ttyACM0"],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools"
+      ],
+      "settings": {
+        "cmake.additionalKits": ["/opt/32blit-kits.json"],
+        "cmake.configureSettings": {
+          "32BLIT_DIR": "/opt/32blit-sdk"
+        },
+        "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+      }
+    }
+  }
+}
