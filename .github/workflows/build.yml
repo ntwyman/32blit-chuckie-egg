@@ -83,9 +83,10 @@ jobs:
       with:
         python-version: '3.12'
 
+    # bitstring 5 removed ConstBitStream, which 32blit tools 0.7.4 imports
     - name: Install 32blit tools
       shell: bash
-      run: python -m pip install 32blit
+      run: python -m pip install 32blit "bitstring<5"
 
     # Linux dependencies
     - name: Install Linux deps
