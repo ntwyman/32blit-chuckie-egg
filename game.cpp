@@ -1,6 +1,7 @@
 #include "game.hpp"
 #include "levels.hpp"
 #include "sprites.hpp"
+#include <bitset>
 #include <cstring>
 // #include <iostream>
 
@@ -695,7 +696,7 @@ void Game::moveBigDuck() {
 }
 
 static int popcount(unsigned int val) {
-    return __builtin_popcount(val);
+    return std::bitset<32>(val).count();
 }
 
 unsigned int Game::frobRandom(){
