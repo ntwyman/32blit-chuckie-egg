@@ -23,7 +23,7 @@ In every **Verify** block, trunk means the PR's base, which is its parent branch
 
 - [ ] State the protocol and this plan to the operator, then stop. Start execution only on the operator's explicit go.
 - [ ] Run inside the dev container. Check that `/opt/32blit-sdk` exists and that `claude plugin list` shows `pstack@cursor-plugins` enabled.
-- [ ] Read the original's source in `third_party/pbrook-chuckie-egg/`, which CE-1 commits. Every later reference to upstream source means that folder. Never edit it outside a PR that changes the pinned commit.
+- [ ] Once CE-1 lands, read the original's source in `third_party/pbrook-chuckie-egg/`. Before then, the CE-1 owner reads its import clone in `/tmp/upstream-import`. Every later reference to upstream source means that folder. Never edit it outside a PR that changes the pinned commit.
 - [ ] Read these from trunk at program start. Re-read them at every tick.
   - [ ] `git show origin/main:docs/plans/port-completion.md`
   - [ ] `<pstack>/skills/poteto-mode/playbooks/autopilot-stack.md` and `<pstack>/skills/poteto-mode/playbooks/autopilot-full.md`
@@ -61,7 +61,7 @@ In every **Verify** block, trunk means the PR's base, which is its parent branch
 - [ ] Write `Closes #<issue>` in the PR body, with the issue number from the dependency graph. Comment on that issue with the PR link at code-ready, at merge-ready, and at each verdict. Record decisions the operator makes on the issue too, not only in chat.
 - [ ] Open the PR ready, never draft, per **Opening a PR**. Use the run's built-in PR tool when it has one, else `origin pr create --status open --base <base-branch>` or `gh pr create --base <base-branch>` according to the resolved forge. A stack child targets its parent branch.
 - [ ] Build the SDL and STM32 targets in the dev container once before the PR-facing push. The repo has no lint or typecheck beyond `-Wall -Wextra`, so a build with zero new warnings is the check. Push with hooks on.
-- [ ] Run `/deslop` before each commit and `/no-comments` before review. Each gameplay PR deletes the commented-out C block it replaces in `game.cpp`.
+- [ ] Run `/deslop` before each commit and `/no-comments` before review. `/deslop` is the project skill in `.claude/skills/deslop/`, and `/no-comments` comes from pstack. Each gameplay PR deletes the commented-out C block it replaces in `game.cpp`.
 - [ ] Triage every Bugbot and security-reviewer comment per `<pstack>/skills/poteto-mode/references/bugbot-triage.md`.
 - [ ] Leave rebasing to the root. Owners never rebase onto another branch, per `autopilot-stack.md` step 1.
 
@@ -213,7 +213,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 - [ ] Split `Game::Tickle` into a clock part, which stays in `chuckie_egg.cpp`, and `Game::Step(uint8_t buttons)`, which runs exactly one original frame. `pollKeys` moves to the caller, so `Step` reads no globals.
 - [ ] Add a start-level option. `cmake -DCHUCKIE_START_LEVEL=<n>` sets the level a new game starts on, as a displayed level number. Both drivers take `--level <n>`, and a script's first line can name its level. `drive.sh start --level <n>` builds with that option. It lands here, so every later PR's parent already has it.
-- [ ] Add `Game::Snapshot()`, which returns a `FrameTrace` with Henry's x, y, and mode, the score, lives, bonus, timer, the lift positions, and every hen's position and mode.
+- [ ] Add `Game::Snapshot()`, which returns a `FrameTrace` with Henry's x, y, and mode, the score, lives, bonus, timer, the lift positions, the duck timer, the index of the hen due to move next, and every hen's position and mode.
 - [ ] `run.sh` runs both drivers on each script, diffs the traces, and prints the first frame and field that differ.
 - [ ] `expected-divergent.txt` lists the scripts that diverge today. A script that passes but is still listed fails the run, so the list can only shrink.
 
@@ -223,7 +223,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `tools/parity/scripts/idle.inputs` holds no input for 300 frames. Its first divergence is a hen field on the first frame where the duck timer reaches 8, because `Game::moveDucks` moves a hen in that slot while upstream `MoveDucks` returns (`chuckie.c:828-861`). List `idle` in `expected-divergent.txt`. CE-4 fixes the slot. Run `tools/parity/run.sh --script idle`.
+- [ ] `tools/parity/scripts/idle.inputs` holds no input for 300 frames. Its first divergence is the next-hen index on the first frame where the duck timer reaches 8, because `Game::moveDucks` advances the hen schedule in that slot while upstream `MoveDucks` returns (`chuckie.c:828-861`). A hen position may differ only on a later frame, since on level 1 that slot can pick an inactive hen. List `idle` in `expected-divergent.txt`. CE-4 fixes the slot. Run `tools/parity/run.sh --script idle`.
 - [ ] Remove a script from `expected-divergent.txt` that still diverges, and check that `run.sh --all` fails. Run `tools/parity/run.sh --all`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe.
@@ -235,7 +235,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Lane 5. Run the port driver alone on `jump-left.inputs`. Save `port-jump.png` of the trace. Pass when the trace has one row per input frame.
 - [ ] Lane 6. Play level 1 for 60 seconds with `drive.sh`. Save `play-60s.png`. Pass when the game shows no crash and `debugf` shows no `abort`.
 - [ ] Lane 7. Build STM32 and web with `CHUCKIE_PARITY` off. Save `targets.png`. Pass when both build and neither links the `parity` target.
-- [ ] Lane 8. Corrupt one byte of `third_party/pbrook-chuckie-egg/leveldata.c` in a scratch copy. Save `parity-red.png`. Pass when `run.sh --script idle` reports a divergence before the first frame where the duck timer reaches 8.
+- [ ] Lane 8. In a scratch copy, change the first hen's start x in `level1` of `third_party/pbrook-chuckie-egg/leveldata.c`. Save `parity-red.png`. Pass when `run.sh --script idle` reports a hen position divergence on frame 0.
 - [ ] Lane 9. Run `run.sh --all` twice. Save `parity-repeat.png`. Pass when both runs print the same lines.
 - [ ] Lane 10. Push and watch CI. Save `ci-parity.png`. Pass when the parity step runs and is green.
 
@@ -510,7 +510,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 - [ ] Add the beep frequency and the noise trigger to `FrameTrace`, and check that every script that passed at trunk still prints `PASS`. Run `tools/parity/run.sh --all`.
 
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe. Each lane runs the game with `SDL_AUDIODRIVER=disk` and `SDL_DISKAUDIOFILE=/tmp/swarm-ce-8/worker-<n>/audio.raw`, then renders a spectrogram of that file with `ffmpeg`.
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe. Each lane captures audio with the recipe the first **Build** box recorded, then renders a spectrogram of the capture with `ffmpeg`. With the disk driver, run the game with `SDL_AUDIODRIVER=disk` and `SDL_DISKAUDIOFILE=/tmp/swarm-ce-8/worker-<n>/audio.raw`. With the PulseAudio fallback, run it with `SDL_AUDIODRIVER=pulseaudio` and record the null sink's monitor with `parec`.
 
 - [ ] Lane 1. Regression lane against trunk. Walk right for 3 seconds at trunk and head. Save `audio-trunk.png` and `audio-head.png` spectrograms. Pass when trunk is silent and head shows a beep every other frame.
 - [ ] Lane 2. Climb a ladder. Save `climb-audio.png`. Pass when the beep pitch differs from walking.
