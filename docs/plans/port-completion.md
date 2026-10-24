@@ -204,7 +204,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Create `tools/parity/trace.h`, the frame record that both drivers write.
 - [ ] Create `tools/parity/original_driver.c`, which builds `third_party/pbrook-chuckie-egg/chuckie.c` and `leveldata.c` with a no-op `raster` and scripted input. It applies upstream changes, such as the CE-6 `abort()` fix, as patches at build time and never edits `third_party/`.
 - [ ] Create `tools/parity/port_driver.cpp`, which runs `Game` with scripted input and no rendering.
-- [ ] Create `tools/parity/run.sh`, `tools/parity/scripts/*.inputs`, and `tools/parity/expected-divergent.txt`.
+- [ ] Create `tools/parity/run.sh`, `tools/parity/scripts/*.inputs`, `tools/parity/expected-divergent.txt`, and `tools/parity/idle-divergences.txt`.
 - [ ] Edit `game.hpp`, `game.cpp`, and `chuckie_egg.cpp`.
 - [ ] Edit `CMakeLists.txt` to add a host-only `parity` target behind `option(CHUCKIE_PARITY)`.
 - [ ] Edit `.github/workflows/build.yml` to run `tools/parity/run.sh --all`.
@@ -213,7 +213,8 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 - [ ] Split `Game::Tickle` into a clock part, which stays in `chuckie_egg.cpp`, and `Game::Step(uint8_t buttons)`, which runs exactly one original frame. `pollKeys` moves to the caller, so `Step` reads no globals.
 - [ ] Add a start-level option. `cmake -DCHUCKIE_START_LEVEL=<n>` sets the level a new game starts on, as a displayed level number. Both drivers take `--level <n>`, and a script's first line can name its level. `drive.sh start --level <n>` builds with that option. It lands here, so every later PR's parent already has it.
-- [ ] Add `Game::Snapshot()`, which returns a `FrameTrace` with Henry's x, y, and mode, the score, lives, bonus, timer, the lift positions, the duck timer, the index of the hen due to move next, and every hen's position and mode.
+- [ ] Write `FrameTrace` in upstream coordinates. `port_driver.cpp` converts the port's screen positions with the exact inverse of `Game::tilePosition` in `game.cpp`, so it removes `X_OFFSET` and flips y. Never tune the conversion to make a trace match. A position that still differs after the conversion is a real difference to fix. The trace also records Henry's tile and partial position, which both games keep with the same meaning.
+- [ ] Add `Game::Snapshot()`, which returns a `FrameTrace` with Henry's x, y, tile, partial position, and mode, the score, lives, bonus, timer, the lift positions, the duck timer, the index of the hen due to move next, and every hen's position and mode.
 - [ ] `run.sh` runs both drivers on each script, diffs the traces, and prints the first frame and field that differ.
 - [ ] `expected-divergent.txt` lists the scripts that diverge today. A script that passes but is still listed fails the run, so the list can only shrink.
 
@@ -223,7 +224,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `tools/parity/scripts/idle.inputs` holds no input for 300 frames. Its first divergence is the next-hen index on the first frame where the duck timer reaches 8, because `Game::moveDucks` advances the hen schedule in that slot while upstream `MoveDucks` returns (`chuckie.c:828-861`). A hen position may differ only on a later frame, since on level 1 that slot can pick an inactive hen. List `idle` in `expected-divergent.txt`. CE-4 fixes the slot. Run `tools/parity/run.sh --script idle`.
+- [ ] `tools/parity/scripts/idle.inputs` holds no input for 300 frames. Do not predict its divergences. Run it, and record each frame and field that `run.sh` reports in `tools/parity/idle-divergences.txt`, then list `idle` in `expected-divergent.txt`. Reading the code finds at least two differences, so expect `idle` to diverge. Henry starts 3 pixels right of upstream, because `Game::loadLevel` sets `pos.x` to `tilex*8 + partial_x` (`game.cpp:148-151`) and upstream sets `player_x` to `0x3c`, which is `tilex*8 + partial_x - 3` (`chuckie.c:208`). `Game::moveDucks` also advances the hen schedule in duck-timer slot 8, where upstream `MoveDucks` returns (`chuckie.c:828-861`). Run `tools/parity/run.sh --script idle`.
 - [ ] Remove a script from `expected-divergent.txt` that still diverges, and check that `run.sh --all` fails. Run `tools/parity/run.sh --all`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe.
@@ -255,7 +256,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
 - [ ] The root appends CE-3 to the base-branch stack and the operator lands it bottom-up.
 
-## Run one game frame every 30 ms and match the hen schedule (CE-4)
+## Run one game frame every 30 ms and match the original with no input (CE-4)
 
 **Depends on.** CE-3.
 
@@ -264,6 +265,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Edit `game.hpp` and `game.cpp`.
 - [ ] Edit `chuckie_egg.cpp`.
 - [ ] Edit `tools/parity/expected-divergent.txt`.
+- [ ] Delete `tools/parity/idle-divergences.txt`.
 - [ ] Create `frame_clock.hpp`.
 - [ ] Create `tools/parity/clock_test.cpp`, and add it to the `parity` target in `CMakeLists.txt`.
 
@@ -271,7 +273,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 - [ ] Move the clock out of `chuckie_egg.cpp` into `FrameClock` in `frame_clock.hpp`. `FrameClock::due(uint32_t now)` returns how many `Step` calls to run, at one per 30 ms and at most two per call. It advances its last time by 30 ms per step, and it drops the rest of a longer backlog. 30 ms matches `sdl.c:145` upstream.
 - [ ] `update` in `chuckie_egg.cpp` calls `Game::Step` the number of times `FrameClock::due` returns.
-- [ ] Return from `Game::moveDucks` after duck-timer slot 8 runs the mother duck, as `chuckie.c:861` does, so no hen moves in that slot. Every later gate compares hen fields, so this fix comes first.
+- [ ] Fix every difference in `tools/parity/idle-divergences.txt`, then delete that file. Rerun `idle` after each fix, because a fix can expose a later difference. The two known differences are Henry's start x and duck-timer slot 8. For slot 8, return from `Game::moveDucks` after the mother duck runs, as `chuckie.c:861` does. Every later gate compares Henry and hen fields, so these fixes come first.
 
 **You see.**
 
