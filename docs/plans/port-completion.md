@@ -13,6 +13,8 @@ The program runs `<pstack>/skills/poteto-mode/playbooks/autopilot-stack.md`, whe
 
 Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
+Level numbers in this plan are the numbers the HUD shows, which are `current_level + 1` in both `chuckie.c` and `game.cpp`. Level 1 is `current_level` 0.
+
 In every **Verify** block, trunk means the PR's base, which is its parent branch at the exact SHA the PR was built on. CE-1's base is `main`. A regression or perf lane runs its trunk side at that SHA, so the tools that earlier links add exist on both sides.
 
 ## Program checklist
@@ -49,8 +51,8 @@ In every **Verify** block, trunk means the PR's base, which is its parent branch
 - [ ] Hold the file boundaries.
   - [ ] CE-1 touches only `third_party/pbrook-chuckie-egg/**`, `LICENSE`, `README.md`, `metadata.yml`, `CMakeLists.txt`, `tools/check-license.sh`, `.github/workflows/build.yml`, and the header comment of each `*.cpp` and `*.hpp` file.
   - [ ] CE-2 touches only `tools/live/**`, `.devcontainer/Dockerfile`, `.devcontainer/devcontainer.json`, and `.github/workflows/build.yml`.
-  - [ ] CE-3 touches only `tools/parity/**`, `CMakeLists.txt`, `.github/workflows/build.yml`, and the `Tickle` and snapshot code in `game.hpp`, `game.cpp`, and `chuckie_egg.cpp`.
-  - [ ] CE-4 through CE-9 touch `game.hpp`, `game.cpp`, `chuckie_egg.cpp`, `frame_clock.hpp`, `tools/parity/**`, `tools/live/**`, and `docs/media/**`. CE-4 and CE-5 also touch `CMakeLists.txt`. CE-9 also touches `assets/**`, `assets.yml`, and `metadata.yml`.
+  - [ ] CE-3 touches only `tools/parity/**`, `tools/live/**`, `CMakeLists.txt`, `.github/workflows/build.yml`, and the `Tickle` and snapshot code in `game.hpp`, `game.cpp`, and `chuckie_egg.cpp`.
+  - [ ] CE-4 through CE-9 touch `game.hpp`, `game.cpp`, `chuckie_egg.cpp`, `frame_clock.hpp`, `tools/parity/**`, `tools/live/**`, and `docs/media/**`. CE-4 also touches `CMakeLists.txt`. CE-9 also touches `assets/**`, `assets.yml`, and `metadata.yml`.
 - [ ] Hold the review gate. CE-4, CE-5, CE-6, CE-7, CE-8, and CE-9 change an interaction. They wait for the operator's review in chat with screenshots and a video before merge.
 
 ### PR mechanics, for every PR
@@ -210,6 +212,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 **Build.**
 
 - [ ] Split `Game::Tickle` into a clock part, which stays in `chuckie_egg.cpp`, and `Game::Step(uint8_t buttons)`, which runs exactly one original frame. `pollKeys` moves to the caller, so `Step` reads no globals.
+- [ ] Add a start-level option. `cmake -DCHUCKIE_START_LEVEL=<n>` sets the level a new game starts on, as a displayed level number. Both drivers take `--level <n>`, and a script's first line can name its level. `drive.sh start --level <n>` builds with that option. It lands here, so every later PR's parent already has it.
 - [ ] Add `Game::Snapshot()`, which returns a `FrameTrace` with Henry's x, y, and mode, the score, lives, bonus, timer, the lift positions, and every hen's position and mode.
 - [ ] `run.sh` runs both drivers on each script, diffs the traces, and prints the first frame and field that differ.
 - [ ] `expected-divergent.txt` lists the scripts that diverge today. A script that passes but is still listed fails the run, so the list can only shrink.
@@ -220,7 +223,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `tools/parity/scripts/idle.inputs` holds no input for 300 frames. Its first divergence is a hen field on the first frame where the duck timer reaches 8, because `Game::moveDucks` moves a hen in that slot while upstream `MoveDucks` returns (`chuckie.c:828-861`). List `idle` in `expected-divergent.txt`. CE-7 fixes the slot. Run `tools/parity/run.sh --script idle`.
+- [ ] `tools/parity/scripts/idle.inputs` holds no input for 300 frames. Its first divergence is a hen field on the first frame where the duck timer reaches 8, because `Game::moveDucks` moves a hen in that slot while upstream `MoveDucks` returns (`chuckie.c:828-861`). List `idle` in `expected-divergent.txt`. CE-4 fixes the slot. Run `tools/parity/run.sh --script idle`.
 - [ ] Remove a script from `expected-divergent.txt` that still diverges, and check that `run.sh --all` fails. Run `tools/parity/run.sh --all`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe.
@@ -252,14 +255,15 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
 - [ ] The root appends CE-3 to the base-branch stack and the operator lands it bottom-up.
 
-## Run one game frame every 30 ms (CE-4)
+## Run one game frame every 30 ms and match the hen schedule (CE-4)
 
 **Depends on.** CE-3.
 
 **Files.**
 
-- [ ] Edit `game.hpp`.
+- [ ] Edit `game.hpp` and `game.cpp`.
 - [ ] Edit `chuckie_egg.cpp`.
+- [ ] Edit `tools/parity/expected-divergent.txt`.
 - [ ] Create `frame_clock.hpp`.
 - [ ] Create `tools/parity/clock_test.cpp`, and add it to the `parity` target in `CMakeLists.txt`.
 
@@ -267,6 +271,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 - [ ] Move the clock out of `chuckie_egg.cpp` into `FrameClock` in `frame_clock.hpp`. `FrameClock::due(uint32_t now)` returns how many `Step` calls to run, at one per 30 ms and at most two per call. It advances its last time by 30 ms per step, and it drops the rest of a longer backlog. 30 ms matches `sdl.c:145` upstream.
 - [ ] `update` in `chuckie_egg.cpp` calls `Game::Step` the number of times `FrameClock::due` returns.
+- [ ] Return from `Game::moveDucks` after duck-timer slot 8 runs the mother duck, as `chuckie.c:861` does, so no hen moves in that slot. Every later gate compares hen fields, so this fix comes first.
 
 **You see.**
 
@@ -275,7 +280,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
 - [ ] `clock_test.cpp` feeds `FrameClock::due` timestamps every 10 ms for 3 seconds and checks for exactly 100 steps. It then jumps 500 ms and checks for 2 steps, then 1 step per 30 ms after that. The trace diff cannot see the clock, because it calls `Step` once per input frame. Run `tools/parity/run.sh --clock`.
-- [ ] Every script that passed at trunk still prints `PASS`. Run `tools/parity/run.sh --all`.
+- [ ] `idle` prints `PASS` and leaves `expected-divergent.txt`. Every script that passed at trunk still prints `PASS`. Run `tools/parity/run.sh --all`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe.
 
@@ -317,13 +322,12 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 **Files.**
 
 - [ ] Edit `game.cpp` and `game.hpp`.
-- [ ] Edit `CMakeLists.txt`, `tools/parity/original_driver.c`, `tools/parity/port_driver.cpp`, and `tools/live/drive.sh`.
 - [ ] Edit `tools/parity/expected-divergent.txt`.
 - [ ] Create `tools/parity/scripts/lift-ride.inputs` and `tools/parity/scripts/lift-crush.inputs`.
 
 **Build.**
 
-- [ ] Add a start-level option. `cmake -DCHUCKIE_START_LEVEL=<n>` sets the level a new game starts on. Both drivers take `--level <n>`, and a script's first line can name its level. `drive.sh start --level <n>` builds with that option. Level 3 is the first layout with a lift, because the third header byte of `level1` and `level2` in `levels.cpp` is `0x00`.
+- [ ] Use level 3 for every lift scenario, with the CE-3 start-level option. Level 3 is the first layout with a lift, because the third header byte of `level1` and `level2` in `levels.cpp` is `0x00`.
 - [ ] Port `PlayerHitLift` (`chuckie.c:421`) into `Game::henryHitLift`, including the Y check and the +10 landing and +9 staying edges.
 - [ ] Port the LIFT mode of `MovePlayer` (`chuckie.c:614`) into `Game::liftHenry`, and the crush death at `chuckie.c:630`.
 
@@ -434,15 +438,14 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 - [ ] Edit `game.cpp` and `game.hpp`.
 - [ ] Edit `tools/parity/expected-divergent.txt`.
-- [ ] Create `tools/parity/scripts/level-skip-40.inputs`, which uses a debug level skip like upstream's `l` key. Other lanes start on a level with the CE-5 start-level option.
+- [ ] Create `tools/parity/scripts/level-skip-40.inputs`, which uses a debug level skip like upstream's `l` key. Other lanes start on a level with the CE-3 start-level option.
 
 **Build.**
 
 - [ ] After the bonus drains, advance `current_level`, save and restore player state, and load level data with `current_level & 7`, per `chuckie.c:1155-1174`.
-- [ ] Port the difficulty rules. No hens on levels 8 to 15. Five hens from level 24. The mother duck from level 8. `duck_speed` 5 from level 32. The timer and bonus start values, and the egg value `min((level>>2)+1, 10)` x 100.
+- [ ] Port the difficulty rules from `chuckie.c:193-196`, `chuckie.c:360`, and `chuckie.c:1097-1101`. No hens on levels 9 to 16. Five hens from level 25. The mother duck from level 9. `duck_speed` 5 from level 33. The timer and bonus start values. The egg value is `min((current_level>>2)+1, 10)` x 100.
 - [ ] Rotate turns between players after each death when more than one player is playing.
 - [ ] Draw the mother duck only when `hasBigDuck` is set.
-- [ ] Return from `Game::moveDucks` after the duck-timer slot 8 runs the mother duck, as `chuckie.c:861` does, so no hen moves in that slot.
 
 **You see.**
 
@@ -450,7 +453,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `level-skip-40` prints `PASS`, which covers every rule change up to level 40. `idle` leaves `expected-divergent.txt`. Run `tools/parity/run.sh --all`.
+- [ ] `level-skip-40` prints `PASS`, which covers every rule change up to level 40. Run `tools/parity/run.sh --all`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe.
 
@@ -458,9 +461,9 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Lane 2. Watch the bonus drain. Save `bonus-drain.png`. Pass when the score rises by the bonus value.
 - [ ] Lane 3. Skip to level 9. Save `level9.png`. Pass when the mother duck is out and no hens show.
 - [ ] Lane 4. Skip to level 1 and look for the mother duck. Save `no-duck.png`. Pass when no mother duck is drawn.
-- [ ] Lane 5. Skip to level 24. Save `level24.png`. Pass when five hens show.
-- [ ] Lane 6. Skip to level 32 and time a hen. Save `level32.png`. Pass when hen steps come every 8 frames.
-- [ ] Lane 7. Take an egg on level 20. Save `egg-value.png`. Pass when the score rises by 600.
+- [ ] Lane 5. Skip to level 25. Save `level25.png`. Pass when five hens show.
+- [ ] Lane 6. Skip to level 33 and time a hen. Save `level33.png`. Pass when hen steps come every 8 frames.
+- [ ] Lane 7. Take an egg on level 20. Save `egg-value.png`. Pass when the score rises by 500, because `current_level` is 19 there.
 - [ ] Lane 8. Start a two-player game and die once. Save `two-player.png`. Pass when player 2's turn starts on level 1.
 - [ ] Lane 9. Let the mother duck catch Henry on level 9. Save `duck-death.png`. Pass when Henry loses a life.
 - [ ] Lane 10. Run `run.sh --all`. Save `parity.png`. Pass when `level-skip-40` prints `PASS`.
