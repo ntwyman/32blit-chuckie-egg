@@ -13,7 +13,7 @@ against the current [32Blit SDK](https://github.com/32blit/32blit-sdk).
 Chuckie Egg is the original game by A & F Software. This port is based on Paul
 Brook's C source, [Chuckie Egg](https://github.com/pbrook/Chuckie-Egg),
 released under the GNU GPL v3. A read-only copy of that source, pinned to one
-commit, is in [`third_party/pbrook-chuckie-egg/`](third_party/pbrook-chuckie-egg/).
+commit, is in [`third_party/pbrook-chuckie-egg/`](https://github.com/ntwyman/32blit-chuckie-egg/tree/main/third_party/pbrook-chuckie-egg).
 The level and sprite data in `levels.cpp` and `sprites.cpp` come from Paul
 Brook's `leveldata.c` and `spritedata.c`.
 

@@ -10,7 +10,8 @@ while IFS= read -r file; do
     echo "missing SPDX line: $file" >&2
     status=1
   fi
-done < <(find . -maxdepth 1 \( -name '*.cpp' -o -name '*.hpp' \) | sort)
+done < <(find . \( -path ./third_party -o -path ./.git -o -path ./.claude -o -path './build*' \) -prune -o \
+  -type f \( -name '*.cpp' -o -name '*.hpp' \) -print | sort)
 
 if ! cmp -s LICENSE third_party/pbrook-chuckie-egg/COPYING; then
   echo "LICENSE differs from third_party/pbrook-chuckie-egg/COPYING" >&2
