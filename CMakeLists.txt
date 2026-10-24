@@ -12,7 +12,6 @@ set(PROJECT_SOURCE
   sprites.cpp sprites.hpp
 )
 
-# Files shipped in the release archive
 set(PROJECT_DISTRIBS LICENSE README.md)
 
 # Build configuration; approach this with caution!
