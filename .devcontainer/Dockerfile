@@ -13,6 +13,7 @@
 #   - Node.js, for the pstack plan checker
 #   - ripgrep, Xvfb, xdotool, ImageMagick and ffmpeg, so agents can search
 #     the code and drive and capture the SDL build
+#   - Playwright's headless Chromium, for the web build and rendered docs
 
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
@@ -70,6 +71,12 @@ RUN python3 -m venv /opt/venv \
 RUN git clone --depth 1 --branch ${TOOLS_REF} ${TOOLS_REPO} /opt/32blit-tools \
     && pip install --no-cache-dir --no-build-isolation /opt/32blit-tools/src 'bitstring<5' \
     && 32blit version
+
+# Headless Chromium for agents to load the web build and rendered docs.
+# Installed as root for its system libraries, into a path every user reads
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+RUN pip install --no-cache-dir playwright \
+    && playwright install --with-deps chromium
 
 # 32blit SDK
 RUN git clone --depth 1 --branch ${SDK_REF} ${SDK_REPO} /opt/32blit-sdk

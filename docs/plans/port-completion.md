@@ -52,7 +52,7 @@ In every **Verify** block, trunk means the PR's base, which is its parent branch
   - [ ] CE-1 touches only `third_party/pbrook-chuckie-egg/**`, `LICENSE`, `README.md`, `metadata.yml`, `CMakeLists.txt`, `tools/check-license.sh`, `.github/workflows/build.yml`, and the header comment of each `*.cpp` and `*.hpp` file.
   - [ ] CE-2 touches only `tools/live/**`, `.devcontainer/Dockerfile`, `.devcontainer/devcontainer.json`, and `.github/workflows/build.yml`.
   - [ ] CE-3 touches only `tools/parity/**`, `tools/live/**`, `CMakeLists.txt`, `.github/workflows/build.yml`, and the `Tickle` and snapshot code in `game.hpp`, `game.cpp`, and `chuckie_egg.cpp`.
-  - [ ] CE-4 through CE-9 touch `game.hpp`, `game.cpp`, `chuckie_egg.cpp`, `frame_clock.hpp`, `tools/parity/**`, `tools/live/**`, and `docs/media/**`. CE-4 also touches `CMakeLists.txt`. CE-9 also touches `assets/**`, `assets.yml`, and `metadata.yml`.
+  - [ ] CE-4 through CE-9 touch `game.hpp`, `game.cpp`, `chuckie_egg.cpp`, `frame_clock.hpp`, `tools/parity/**`, `tools/live/**`, and `docs/media/**`. CE-4 and CE-6 also touch `CMakeLists.txt`. CE-9 also touches `assets/**`, `assets.yml`, and `metadata.yml`.
 - [ ] Hold the review gate. CE-4, CE-5, CE-6, CE-7, CE-8, and CE-9 change an interaction. They wait for the operator's review in chat with screenshots and a video before merge.
 
 ### PR mechanics, for every PR
@@ -118,8 +118,8 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Lane 2. Run `cpack` in `build.sdl`. Save `cpack-listing.png` of `tar tzf` output. Pass when the archive lists `LICENSE` and `README.md`, and `LICENSE` contains "GNU GENERAL PUBLIC LICENSE Version 3".
 - [ ] Lane 3. Build the STM32 target. Save `stm32-build.png` of the build tail. Pass when `build.stm32/chuckie-egg.blit` exists and the build prints no new warnings.
 - [ ] Lane 4. Run `32blit metadata` on the `.blit` file, or its equivalent in the installed tools. Save `blit-metadata.png`. Pass when the description names Paul Brook.
-- [ ] Lane 5. Build the web target and serve it with `python3 -m http.server 8000`. Save `web-load.png` from headless Chromium. Pass when the player-count screen renders.
-- [ ] Lane 6. Render `README.md` with `gh markdown-preview` or `pandoc`. Save `readme.png`. Pass when the credits section shows both links and no boilerplate "Use this template" text remains.
+- [ ] Lane 5. Build the web target and serve it with `python3 -m http.server 8000`. Save `web-load.png` from headless Chromium, driven by Playwright from `/opt/venv`. Pass when the player-count screen renders.
+- [ ] Lane 6. Render `README.md` with GitHub's own renderer, `gh api markdown -f mode=gfm -f text="$(cat README.md)"`, and open the HTML in Playwright's Chromium. Save `readme.png`. Pass when the credits section shows both links and no boilerplate "Use this template" text remains.
 - [ ] Lane 7. Run `tools/check-license.sh` after deleting the SPDX line from `game.cpp` in a scratch copy. Save `license-check-red.png`. Pass when the script exits non-zero and names `game.cpp`.
 - [ ] Lane 8. Run `tools/check-license.sh` on the clean head. Save `license-check-green.png`. Pass when it exits zero.
 - [ ] Lane 9. Start the SDL build, choose one player, and walk Henry right for five seconds. Save `walk.png`. Pass when the game still runs and Henry has moved.
@@ -272,7 +272,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 **Build.**
 
 - [ ] Move the clock out of `chuckie_egg.cpp` into `FrameClock` in `frame_clock.hpp`. `FrameClock::due(uint32_t now)` returns how many `Step` calls to run, at one per 30 ms and at most two per call. It advances its last time by 30 ms per step, and it drops the rest of a longer backlog. 30 ms matches `sdl.c:145` upstream.
-- [ ] `update` in `chuckie_egg.cpp` calls `Game::Step` the number of times `FrameClock::due` returns.
+- [ ] `update` in `chuckie_egg.cpp` calls `Game::Step` the number of times `FrameClock::due` returns. It logs the running `Step` count and the steps run in each `update` with `debugf`, which the live lanes read.
 - [ ] Fix every difference in `tools/parity/idle-divergences.txt`, then delete that file. Rerun `idle` after each fix, because a fix can expose a later difference. The two known differences are Henry's start x and duck-timer slot 8. For slot 8, return from `Game::moveDucks` after the mother duck runs, as `chuckie.c:861` does. Every later gate compares Henry and hen fields, so these fixes come first.
 
 **You see.**
@@ -286,7 +286,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe.
 
-- [ ] Lane 1. Regression lane against trunk. Hold right for 3 seconds at trunk and at head. Save `walk3s-trunk.png` and `walk3s-head.png`. Pass when head Henry has moved 3000 / 30 frames' worth of steps, within one step.
+- [ ] Lane 1. Regression lane against trunk. Hold right for 3 seconds at trunk and at head. Save `walk3s-trunk.png` and `walk3s-head.png`. Pass when head runs 100 `Step` calls within one, counted from the `debugf` step counter. Do not infer frames from Henry's position, because a wall or collision stops him sooner.
 - [ ] Lane 2. Record 10 seconds of walking. Save `cadence.png` of the frame-step plot. Pass when Henry moves on 33 plus or minus 1 frames per second.
 - [ ] Lane 3. Jump from standing. Save `jump-apex.png`. Pass when the apex height matches the original driver's trace.
 - [ ] Lane 4. Climb a full ladder. Save `ladder-top.png`. Pass when the climb takes the same frame count as the original.
@@ -390,6 +390,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] On death, take one life and restart the level for that player. On zero lives, go to `GAME_OVER`. A on `GAME_OVER` returns to `HOW_MANY`.
 - [ ] Kill Henry when the timer reaches zero, and delete both `abort()` calls in `game.cpp`. Upstream calls `abort()` at `chuckie.c:884`, so the trace driver patches that line to `is_dead++`.
 - [ ] Port `MaybeAddExtraLife` (`chuckie.c:1009`). Grant one life per 10,000 points and show lives in the HUD.
+- [ ] Add a start-score option for testing. `cmake -DCHUCKIE_START_SCORE=<n>` sets the score a new game starts with, and both drivers take `--score <n>`. `extra-life.inputs` starts at 9,950 on level 1. Do not test the extra life on a high level, because the level rules do not match upstream until CE-7.
 
 **You see.**
 
@@ -408,7 +409,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Lane 5. Start a second game. Save `second-game.png`. Pass when lives are 5 and the score is 0.
 - [ ] Lane 6. Wait for the timer to reach zero. Save `timeout.png`. Pass when Henry dies and the process is still running.
 - [ ] Lane 7. Fall off the bottom of the screen. Save `fall-death.png`. Pass when Henry loses one life.
-- [ ] Lane 8. Play until the score passes 10,000. Save `extra-life.png`. Pass when lives rise by one on the frame the score crosses 10,000.
+- [ ] Lane 8. Start with `drive.sh start --score 9950` and take one egg. Save `extra-life.png`. Pass when lives rise by one on the frame the score crosses 10,000.
 - [ ] Lane 9. Die to the lift crush. Save `crush-death.png`. Pass when Henry loses one life.
 - [ ] Lane 10. Run `run.sh --all`. Save `parity.png`. Pass when the three new scripts print `PASS`.
 
@@ -521,7 +522,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Lane 5. Take grain. Save `grain-audio.png`. Pass when a shorter noise burst starts on that frame.
 - [ ] Lane 6. Stand still for 5 seconds. Save `idle-audio.png`. Pass when no sound plays.
 - [ ] Lane 7. Reach game over. Save `game-over-audio.png`. Pass when sound stops.
-- [ ] Lane 8. Play the web build in headless Chromium and read its console log. Save `web-audio.png`. Pass when `debugf` shows a beep trigger on the walking frames.
+- [ ] Lane 8. Play the web build in Playwright's headless Chromium and read its console log. Save `web-audio.png`. Pass when `debugf` shows a beep trigger on the walking frames.
 - [ ] Lane 9. Build STM32. Save `stm32-audio-build.png`. Pass when it builds with no new warnings.
 - [ ] Lane 10. Run `run.sh --all`. Save `parity.png`. Pass when every script that passed before still passes.
 
