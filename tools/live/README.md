@@ -42,7 +42,18 @@ wait <ms>
 | `x`, `c`, `v` | The B, X, and Y buttons. |
 | `1`, `2`, `3`, `esc` | Home, menu, and the joystick button. |
 
-From boot, `z` at "How many players" and `z` at "Ready player" starts play. `scripts/start-one-player.keys` does this. `scripts/walk-right.keys` walks Henry right along the floor.
+Join keys with `+` to hold them together, as in `left+up 330`.
+
+From boot, `z` at "How many players" and `z` at "Ready player" starts play. `scripts/start-one-player.keys` does this. Run it first, then another script.
+
+| Script | What it does |
+| --- | --- |
+| `start-one-player.keys` | Starts a one-player game and lands on level 1. |
+| `walk-right.keys` | Walks Henry right along the floor for two seconds. |
+| `jump.keys` | Holds the jump key for 500 ms. |
+| `climb-first-ladder.keys` | Walks to the big ladder on level 1 with up held, so Henry grabs it, then climbs. |
+
+Henry grabs a ladder only on one exact pixel, and the game steps on wall-clock time. `left+up` held while walking past the ladder grabs it without aiming.
 
 ## Running lanes in parallel
 

@@ -103,9 +103,9 @@ xdotool_key() {
   esac
 }
 
-# Prints "<xdotool key> <hold-ms>" or "wait <ms>" for each step, or exits 2 naming the first bad line.
+# Prints "<xdotool key>[+<xdotool key>] <hold-ms>" or "wait <ms>" for each step, or exits 2 naming the first bad line.
 parse_keys() {
-  local file="$1" n=0 line key arg extra
+  local file="$1" n=0 line key arg extra part xk names
   while IFS= read -r line || [ -n "$line" ]; do
     n=$((n + 1))
     line="${line%%#*}"
@@ -118,12 +118,17 @@ parse_keys() {
     fi
     if [ "$key" = wait ]; then
       echo "wait $arg"
-    elif xk="$(xdotool_key "$key")"; then
-      echo "$xk $arg"
-    else
-      echo "drive.sh: $file:$n: unknown key '$key'" >&2
-      return 2
+      continue
     fi
+    names=""
+    for part in ${key//+/ }; do
+      xk="$(xdotool_key "$part")" || {
+        echo "drive.sh: $file:$n: unknown key '$part'" >&2
+        return 2
+      }
+      names="$names${names:+ }$xk"
+    done
+    echo "${names// /+} $arg"
   done <"$file"
 }
 
@@ -147,7 +152,7 @@ ms_sleep() {
 cmd_keys() {
   [ $# -eq 1 ] || die "usage: drive.sh keys <script>"
   need xdotool
-  local file steps step key ms
+  local file steps key ms
   file="$(resolve_script "$1")"
   steps="$(parse_keys "$file")" || exit 2
   game_running || die "game is not running, run: drive.sh start"
@@ -155,9 +160,9 @@ cmd_keys() {
     if [ "$key" = wait ]; then
       ms_sleep "$ms"
     else
-      xdotool keydown "$key"
+      xdotool keydown ${key//+/ }
       ms_sleep "$ms"
-      xdotool keyup "$key"
+      xdotool keyup ${key//+/ }
     fi
   done <<<"$steps"
 }
@@ -266,7 +271,7 @@ main() {
     smoke) cmd_smoke "$@" ;;
     golden) cmd_golden "$@" ;;
     *)
-      echo "usage: drive.sh start | keys <script> | shot <path> | record <seconds> <path> | stop | smoke" >&2
+      echo "usage: drive.sh start | keys <script> | shot <path> | record <seconds> <path> | stop | smoke | golden <path>" >&2
       exit 2
       ;;
   esac
