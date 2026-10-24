@@ -1,14 +1,12 @@
-# 32Blit Boilerplate
+# Chuckie Egg for 32blit
 
 ![Build](https://github.com/32blit/32blit-boilerplate/workflows/Build/badge.svg)
 
-This is a basic template for starting 32blit projects. It shows the basic
-code layout and asset pipeline, hopefully giving folk a starting point for
-any new projects.
-
-It's based on the original `template` project from the 
-[32Blit SDK](https://github.com/32blit/32blit-sdk), with added asset
-handling, and some tidying up to fit in with how I do things.
+A work-in-progress port of the classic Chuckie Egg, originally developed in
+[ntwyman/32blit-beta](https://github.com/ntwyman/32blit-beta/tree/a6f2bce8b749c0004990718a892a6ca9fcd325d4/examples/chuckie-egg)
+and moved here (built on the
+[32blit boilerplate](https://github.com/32blit/32blit-boilerplate)) to build
+against the current [32Blit SDK](https://github.com/32blit/32blit-sdk).
 
 ## Usage
 
