@@ -19,7 +19,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 
 - [ ] State the protocol and this plan to the operator, then stop. Start execution only on the operator's explicit go.
 - [ ] Run inside the dev container. Check that `/opt/32blit-sdk` exists and that `claude plugin list` shows `pstack@cursor-plugins` enabled.
-- [ ] Clone upstream at the pinned commit with `git clone https://github.com/pbrook/Chuckie-Egg /tmp/upstream && git -C /tmp/upstream checkout e18004643193a8ff9434cf77b15a13219f6d745e`. Every later reference to upstream source means `/tmp/upstream`.
+- [ ] Read the original's source in `third_party/pbrook-chuckie-egg/`, which CE-1 commits. Every later reference to upstream source means that folder. Never edit it outside a PR that changes the pinned commit.
 - [ ] Read these from trunk at program start. Re-read them at every tick.
   - [ ] `git show origin/main:docs/plans/port-completion.md`
   - [ ] `<pstack>/skills/poteto-mode/playbooks/autopilot-stack.md` and `<pstack>/skills/poteto-mode/playbooks/autopilot-full.md`
@@ -45,9 +45,9 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
   - [ ] CE-8 (#11) after CE-7.
   - [ ] CE-9 (#12) after CE-8, and only if the operator keeps it.
 - [ ] Hold the file boundaries.
-  - [ ] CE-1 touches only `LICENSE`, `README.md`, `metadata.yml`, `CMakeLists.txt`, `tools/check-license.sh`, `.github/workflows/build.yml`, and the header comment of each `*.cpp` and `*.hpp` file.
+  - [ ] CE-1 touches only `third_party/pbrook-chuckie-egg/**`, `LICENSE`, `README.md`, `metadata.yml`, `CMakeLists.txt`, `tools/check-license.sh`, `.github/workflows/build.yml`, and the header comment of each `*.cpp` and `*.hpp` file.
   - [ ] CE-2 touches only `tools/live/**`, `.devcontainer/Dockerfile`, and `.github/workflows/build.yml`.
-  - [ ] CE-3 touches only `tools/parity/**`, `third_party/pbrook-chuckie-egg/**`, `CMakeLists.txt`, `.github/workflows/build.yml`, and the `Tickle` and snapshot code in `game.hpp`, `game.cpp`, and `chuckie_egg.cpp`.
+  - [ ] CE-3 touches only `tools/parity/**`, `CMakeLists.txt`, `.github/workflows/build.yml`, and the `Tickle` and snapshot code in `game.hpp`, `game.cpp`, and `chuckie_egg.cpp`.
   - [ ] CE-4 through CE-9 touch `game.hpp`, `game.cpp`, `chuckie_egg.cpp`, `assets*`, and `tools/parity/expected-divergent.txt`.
 - [ ] Hold the review gate. CE-4, CE-5, CE-6, CE-7, CE-8, and CE-9 change an interaction. They wait for the operator's review in chat with screenshots and a video before merge.
 
@@ -76,13 +76,15 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Start the game with `tools/live/drive.sh start`, which runs it under `Xvfb` at 320x240 on display `:<99+n>` for lane `n`, so parallel lanes never share a display. Deliver input only through `tools/live/drive.sh keys <script>`, which sends `xdotool` key events. The read-only diagnostics are the game's `debugf` output on stdout and `tools/parity/run.sh --script <name>` traces.
 - [ ] Save every screenshot to `/tmp/swarm-<pr-id>/worker-<n>/<slug>.png` with `tools/live/drive.sh shot <path>` and return the paths with the report.
 
-## Relicense under GPLv3 and credit the original (CE-1)
+## Add the original source, relicense under GPLv3, and credit the original (CE-1)
 
 **Depends on.** None.
 
 **Files.**
 
-- [ ] Edit `LICENSE`. Replace the MIT text with the GPLv3 text from `/tmp/upstream/COPYING`.
+- [ ] Create `third_party/pbrook-chuckie-egg/` with every file upstream tracks except `models/blender/`.
+- [ ] Create `third_party/pbrook-chuckie-egg/README.md`.
+- [ ] Edit `LICENSE`. Replace the MIT text with a copy of `third_party/pbrook-chuckie-egg/COPYING`.
 - [ ] Edit `README.md`. Add a credits section, delete the boilerplate usage section, and point the build badge at this repository.
 - [ ] Edit `metadata.yml`.
 - [ ] Edit `CMakeLists.txt`.
@@ -90,6 +92,8 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **Build.**
 
+- [ ] Copy upstream in with `git clone https://github.com/pbrook/Chuckie-Egg /tmp/upstream-import && git -C /tmp/upstream-import archive e18004643193a8ff9434cf77b15a13219f6d745e | tar -x -C third_party/pbrook-chuckie-egg --exclude 'models/blender'`. The 2 MB of Blender files in `models/blender/` feed only upstream's 3D renderer.
+- [ ] Write `third_party/pbrook-chuckie-egg/README.md`. It names the upstream URL, the commit `e18004643193a8ff9434cf77b15a13219f6d745e`, the GPLv3 license, and the excluded `models/blender/` folder. It says that the folder is a read-only reference copy.
 - [ ] Give every source file the header `SPDX-License-Identifier: GPL-3.0-only`, then "Copyright (C) 2009-2011 Paul Brook" and "32Blit port Copyright (C) 2020-2026 ntwyman". `levels.cpp` and `sprites.cpp` also say that the data comes from `leveldata.c` and `spritedata.c`.
 - [ ] Write the `README.md` credits. The game is based on the original by A & F Software. The C source is Paul Brook's [Chuckie Egg](https://github.com/pbrook/Chuckie-Egg), released under the GNU GPL v3. This port is GPLv3 and states what it changed.
 - [ ] Set `metadata.yml` `description` to "A 32blit port of Paul Brook's GPLv3 Chuckie Egg, based on the original by A & F Software".
@@ -97,11 +101,12 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 **You see.**
 
 - [ ] `rg -l "MIT License"` prints nothing, and `rg -L "GPL-3.0-only" -g '*.{cpp,hpp}'` prints nothing.
+- [ ] `git -C /tmp/upstream-import ls-files | grep -v '^models/blender/'` lists exactly the files in `third_party/pbrook-chuckie-egg/` other than its `README.md`, and `diff -r` against the clone shows no content changes.
 - [ ] The release archive from `cpack` holds `LICENSE` with the GPLv3 text and a `README.md` that names Paul Brook and A & F Software.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] The repo has no test target yet. Add `tools/check-license.sh`, which fails when any `*.cpp` or `*.hpp` file lacks the SPDX line or when the SHA-256 of `LICENSE` differs from the SHA-256 of upstream `COPYING`, which the script holds as a constant so CI needs no upstream clone. Run `tools/check-license.sh` and add it as a CI step.
+- [ ] The repo has no test target yet. Add `tools/check-license.sh`, which fails when any `*.cpp` or `*.hpp` file lacks the SPDX line or when `cmp LICENSE third_party/pbrook-chuckie-egg/COPYING` fails. Run `tools/check-license.sh` and add it as a CI step.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe. CE-2 has not landed at this point, so each lane starts the game by hand under `Xvfb` and takes screenshots with `import -window root`.
 
@@ -191,9 +196,8 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **Files.**
 
-- [ ] Create `third_party/pbrook-chuckie-egg/` with `chuckie.c`, `chuckie.h`, `leveldata.c`, `raster.h`, and `COPYING` from upstream commit `e18004643193a8ff9434cf77b15a13219f6d745e`.
 - [ ] Create `tools/parity/trace.h`, the frame record that both drivers write.
-- [ ] Create `tools/parity/original_driver.c`, which links the upstream core with a no-op `raster` and scripted input.
+- [ ] Create `tools/parity/original_driver.c`, which builds `third_party/pbrook-chuckie-egg/chuckie.c` and `leveldata.c` with a no-op `raster` and scripted input. It applies upstream changes, such as the CE-6 `abort()` fix, as patches at build time and never edits `third_party/`.
 - [ ] Create `tools/parity/port_driver.cpp`, which runs `Game` with scripted input and no rendering.
 - [ ] Create `tools/parity/run.sh`, `tools/parity/scripts/*.inputs`, and `tools/parity/expected-divergent.txt`.
 - [ ] Edit `game.hpp`, `game.cpp`, and `chuckie_egg.cpp`.
@@ -599,6 +603,9 @@ No prototype ran before this plan. The open questions stay unproven, and each is
 - **Port from memory or video of the 8-bit game.** The C source exists and runs, so a trace diff against it is a test, and memory is not. CE-9 is the one exception, because upstream never built a title or score table.
 - **Rewrite `game.cpp` from scratch.** About 60 percent of it is a working translation (player movement, hens, mother duck, pickups). The missing parts are lifts, lives, levels, and sound, which fit the current `Game` class.
 - **Tests that check internal functions.** A trace of what the player can see, positions, score, and lives, keeps passing through refactors and fails when the game feels wrong.
+- **Mount a local clone of upstream into the container.** It ties the container to one host path, and nothing pins the clone's version.
+- **Clone upstream while the image builds.** CI does not use the image, so CE-3 would still need its own copy, and a version change would need an image rebuild.
+- **Read upstream on GitHub.** Agents could not search, compile, or diff it, and the trace diff needs the files on disk.
 - **Separate, parallel PRs.** CE-4 through CE-9 all edit `game.cpp` and each needs the one before, so a linear stack avoids constant conflicts.
 
 ## Appendix C. Risks
@@ -613,7 +620,7 @@ No prototype ran before this plan. The open questions stay unproven, and each is
 
 ## Appendix D. Links and reading list
 
-- Upstream source, cloned to `/tmp/upstream` by the program checklist, commit `e18004643193a8ff9434cf77b15a13219f6d745e`, remote `github.com/pbrook/Chuckie-Egg`.
+- Upstream source, committed to `third_party/pbrook-chuckie-egg/` by CE-1, commit `e18004643193a8ff9434cf77b15a13219f6d745e`, remote `github.com/pbrook/Chuckie-Egg`.
 - Read `chuckie.c:1109` (`run_game`) and `chuckie.c:527` (`MovePlayer`) before editing `game.cpp`.
 - CE-3 gets `<pstack>/skills/how/SKILL.md` for the `Step` and `FrameTrace` split, and `<pstack>/skills/interrogate/SKILL.md` before it ships, because every later PR depends on that seam.
 - Keep the decision trail per `<pstack>/skills/show-me-your-work/SKILL.md` locally, and commit it with CE-3, the PR whose design every later PR depends on.
