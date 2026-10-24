@@ -3,7 +3,7 @@
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
-      "SDK_REF": "master",
+      "SDK_REF": "db99cb7fad2ee163bf7251193566bfcf6781da7c",
       "TOOLS_REF": "main",
       "PICO_SDK_REF": "master",
       "PICOVISION_REF": "03df7694ed4fb396c1d12adf90d0150ada6baedc",
