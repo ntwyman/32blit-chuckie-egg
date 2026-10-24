@@ -10,6 +10,7 @@
 #   - the PicoVision libraries, checked out to /opt/picovision
 #   - the 32blit tools, built from source and installed into /opt/venv
 #   - the GitHub CLI (gh)
+#   - Node.js, for the pstack plan checker
 
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
@@ -34,6 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 python3-pip python3-setuptools python3-venv python3-dev \
         libsdl2-dev libsdl2-image-dev libsdl2-net-dev \
         libfreetype-dev \
+        nodejs \
         gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib \
     && rm -rf /var/lib/apt/lists/*
 
