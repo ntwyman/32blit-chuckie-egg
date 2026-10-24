@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2009-2011 Paul Brook
+// 32Blit port Copyright (C) 2020-2026 ntwyman
+
 #include "32blit.hpp"
 #include "game.hpp"
 #include "assets.hpp"

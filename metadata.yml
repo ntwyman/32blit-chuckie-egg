@@ -1,5 +1,5 @@
 title: Chuckie Egg
-description: A 32blit port of the classic Chuckie Egg
+description: A 32blit port of Paul Brook's GPLv3 Chuckie Egg, based on the original by A & F Software
 author: ntwyman
 splash:
   file: assets/no-image.png
