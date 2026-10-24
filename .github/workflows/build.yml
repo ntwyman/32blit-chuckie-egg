@@ -5,13 +5,28 @@
 
 name: Build
 
+# Only files that feed the build trigger it. Pull requests build from the
+# pull_request event, so push builds only main to avoid running twice
 on:
   push:
-    branches:
-      - '**' # only run on branches
+    branches: [main]
+    paths: &build-inputs
+      - '**.c'
+      - '**.h'
+      - '**.cpp'
+      - '**.hpp'
+      - 'CMakeLists.txt'
+      - 'assets/**'
+      - 'assets.yml'
+      - 'metadata.yml'
+      - 'third_party/**'
+      - 'tools/**'
+      - '.github/workflows/build.yml'
   pull_request:
+    paths: *build-inputs
   release:
     types: [published]
+  workflow_dispatch:
 
 env:
   BUILD_TYPE: Release
