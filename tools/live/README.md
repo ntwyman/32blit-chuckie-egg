@@ -61,7 +61,7 @@ Henry grabs a ladder only on one exact pixel, and the game steps on wall-clock t
 
 ## How `smoke` stays exact
 
-The game steps on wall-clock time, so a screenshot at a fixed delay shows a different frame each run. `smoke` records the display at 100 frames per second while the key script runs, then looks for a frame that is identical to the golden image. The golden image is the first frame of level 1. It is the one state the game always shows, because it holds for several ticks. The threshold stays at zero differing pixels. If no frame matches, `smoke` retries the whole sequence up to three times.
+The game steps on wall-clock time, so a screenshot at a fixed delay shows a different frame each run. `smoke` records the display at 100 frames per second while the key script runs, then looks for a frame that is identical to the golden image. The golden image is the first rendered frame of level 1. The game renders every other tick, so that frame shows in about five runs of six (measured, 10 of 12). The threshold stays at zero differing pixels. If no frame matches, `smoke` retries the whole sequence up to five times.
 
 To regenerate the golden image after a deliberate change to the first frame of level 1, run `drive.sh golden tools/live/golden/level1-start.png`. Review the image before you commit it.
 
@@ -75,4 +75,4 @@ To regenerate the golden image after a deliberate change to the first frame of l
 | `LIVE_BIN` | `build.sdl/chuckie-egg` | The game binary. |
 | `LIVE_STATE` | `/tmp/chuckie-live-<display>` | Pid files, logs, and recordings. |
 | `LIVE_OUT_DIR` | `tools/live/out` | Where `smoke` writes `smoke.png`. |
-| `LIVE_SMOKE_ATTEMPTS` | `3` | How many times `smoke` retries. |
+| `LIVE_SMOKE_ATTEMPTS` | `5` | How many times `smoke` retries. |

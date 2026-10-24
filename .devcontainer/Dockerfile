@@ -18,8 +18,6 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
 ARG SDK_REPO=https://github.com/32blit/32blit-sdk
-# The SDK commit that the dev container and CI both build against. Change it
-# together with SDK_REF in devcontainer.json and in .github/workflows/build.yml
 ARG SDK_REF=db99cb7fad2ee163bf7251193566bfcf6781da7c
 ARG TOOLS_REPO=https://github.com/32blit/32blit-tools
 ARG TOOLS_REF=main

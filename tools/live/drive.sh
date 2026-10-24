@@ -13,7 +13,7 @@ BIN="${LIVE_BIN:-$ROOT/build.sdl/chuckie-egg}"
 STATE="${LIVE_STATE:-${TMPDIR:-/tmp}/chuckie-live-$DISPLAY_NUM}"
 OUT_DIR="${LIVE_OUT_DIR:-$LIVE/out}"
 GOLDEN="${LIVE_GOLDEN:-$LIVE/golden/level1-start.png}"
-SMOKE_ATTEMPTS="${LIVE_SMOKE_ATTEMPTS:-3}"
+SMOKE_ATTEMPTS="${LIVE_SMOKE_ATTEMPTS:-5}"
 SMOKE_FPS=100
 
 export DISPLAY=":$DISPLAY_NUM"
@@ -103,7 +103,6 @@ xdotool_key() {
   esac
 }
 
-# Prints "<xdotool key>[+<xdotool key>] <hold-ms>" or "wait <ms>" for each step, or exits 2 naming the first bad line.
 parse_keys() {
   local file="$1" n=0 line key arg extra part xk names
   while IFS= read -r line || [ -n "$line" ]; do
@@ -180,7 +179,7 @@ cmd_record() {
   need ffmpeg
   display_up || die "no display $DISPLAY, run: drive.sh start"
   mkdir -p "$(dirname "$2")"
-  ffmpeg -nostdin -loglevel error -y -f x11grab -framerate 30 -video_size "${SCREEN%x*}" -i "$DISPLAY" \
+  ffmpeg -nostdin -loglevel error -y -f x11grab -draw_mouse 0 -framerate 30 -video_size "${SCREEN%x*}" -i "$DISPLAY" \
     -t "$1" -c:v libx264 -pix_fmt yuv420p "$2"
 }
 
@@ -188,11 +187,9 @@ frame_hashes() {
   ffmpeg -nostdin -loglevel error -i "$1" -vf format=rgb24 -f framemd5 - | awk -F', *' '!/^#/ { print $NF }'
 }
 
-# Records the screen while the one-player script runs, so one of the frames
-# shows the first rendered state of level 1.
 record_start() {
   local video="$1" rec
-  ffmpeg -nostdin -loglevel error -y -f x11grab -framerate "$SMOKE_FPS" -video_size "${SCREEN%x*}" -i "$DISPLAY" \
+  ffmpeg -nostdin -loglevel error -y -f x11grab -draw_mouse 0 -framerate "$SMOKE_FPS" -video_size "${SCREEN%x*}" -i "$DISPLAY" \
     -c:v ffv1 "$video" &
   rec=$!
   sleep 0.5
@@ -242,7 +239,6 @@ cmd_smoke() {
   return 1
 }
 
-# Saves the first rendered frame of level 1 as the golden image.
 cmd_golden() {
   [ $# -eq 1 ] || die "usage: drive.sh golden <path>"
   need Xvfb xdotool ffmpeg

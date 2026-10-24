@@ -31,7 +31,7 @@ on:
 
 env:
   BUILD_TYPE: Release
-  SDK_REF: db99cb7fad2ee163bf7251193566bfcf6781da7c # 32blit-sdk commit, also pinned in .devcontainer
+  SDK_REF: db99cb7fad2ee163bf7251193566bfcf6781da7c
   EM_VERSION: 2.0.18 # Emscripten version
   EM_CACHE_FOLDER: 'emsdk-cache' # Cache for Emscripten libs
 
