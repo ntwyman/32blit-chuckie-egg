@@ -11,6 +11,8 @@
 #   - the 32blit tools, built from source and installed into /opt/venv
 #   - the GitHub CLI (gh)
 #   - Node.js, for the pstack plan checker
+#   - ripgrep, Xvfb, xdotool, ImageMagick and ffmpeg, so agents can search
+#     the code and drive and capture the SDL build
 
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
@@ -36,6 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libsdl2-dev libsdl2-image-dev libsdl2-net-dev \
         libfreetype-dev \
         nodejs \
+        ripgrep xvfb xdotool imagemagick ffmpeg \
         gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib \
     && rm -rf /var/lib/apt/lists/*
 

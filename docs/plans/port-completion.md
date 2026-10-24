@@ -13,6 +13,8 @@ The program runs `<pstack>/skills/poteto-mode/playbooks/autopilot-stack.md`, whe
 
 Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
+In every **Verify** block, trunk means the PR's base, which is its parent branch at the exact SHA the PR was built on. CE-1's base is `main`. A regression or perf lane runs its trunk side at that SHA, so the tools that earlier links add exist on both sides.
+
 ## Program checklist
 
 ### Arm the program
@@ -46,9 +48,9 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
   - [ ] CE-9 (#12) after CE-8, and only if the operator keeps it.
 - [ ] Hold the file boundaries.
   - [ ] CE-1 touches only `third_party/pbrook-chuckie-egg/**`, `LICENSE`, `README.md`, `metadata.yml`, `CMakeLists.txt`, `tools/check-license.sh`, `.github/workflows/build.yml`, and the header comment of each `*.cpp` and `*.hpp` file.
-  - [ ] CE-2 touches only `tools/live/**`, `.devcontainer/Dockerfile`, and `.github/workflows/build.yml`.
+  - [ ] CE-2 touches only `tools/live/**`, `.devcontainer/Dockerfile`, `.devcontainer/devcontainer.json`, and `.github/workflows/build.yml`.
   - [ ] CE-3 touches only `tools/parity/**`, `CMakeLists.txt`, `.github/workflows/build.yml`, and the `Tickle` and snapshot code in `game.hpp`, `game.cpp`, and `chuckie_egg.cpp`.
-  - [ ] CE-4 through CE-9 touch `game.hpp`, `game.cpp`, `chuckie_egg.cpp`, `assets*`, and `tools/parity/expected-divergent.txt`.
+  - [ ] CE-4 through CE-9 touch `game.hpp`, `game.cpp`, `chuckie_egg.cpp`, `frame_clock.hpp`, `tools/parity/**`, `tools/live/**`, and `docs/media/**`. CE-4 and CE-5 also touch `CMakeLists.txt`. CE-9 also touches `assets/**`, `assets.yml`, and `metadata.yml`.
 - [ ] Hold the review gate. CE-4, CE-5, CE-6, CE-7, CE-8, and CE-9 change an interaction. They wait for the operator's review in chat with screenshots and a video before merge.
 
 ### PR mechanics, for every PR
@@ -100,7 +102,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **You see.**
 
-- [ ] `rg -l "MIT License"` prints nothing, and `rg -L "GPL-3.0-only" -g '*.{cpp,hpp}'` prints nothing.
+- [ ] `rg -l "MIT License" LICENSE README.md` prints nothing, and `rg --files-without-match "GPL-3.0-only" -g '*.{cpp,hpp}'` prints nothing.
 - [ ] `git -C /tmp/upstream-import ls-files | grep -v '^models/blender/'` lists exactly the files in `third_party/pbrook-chuckie-egg/` other than its `README.md`, and `diff -r` against the clone shows no content changes.
 - [ ] The release archive from `cpack` holds `LICENSE` with the GPLv3 text and a `README.md` that names Paul Brook and A & F Software.
 
@@ -146,11 +148,12 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Create `tools/live/drive.sh`.
 - [ ] Create `tools/live/README.md`.
 - [ ] Create `tools/live/scripts/start-one-player.keys` and `tools/live/scripts/walk-right.keys`.
-- [ ] Edit `.devcontainer/Dockerfile` to install `xvfb`, `xdotool`, `imagemagick`, and `ffmpeg`.
+- [ ] Edit `.devcontainer/Dockerfile` and `.devcontainer/devcontainer.json`.
 - [ ] Edit `.github/workflows/build.yml` to add a Linux job that runs `tools/live/drive.sh smoke`.
 
 **Build.**
 
+- [ ] Pin `SDK_REF` to one 32blit-sdk commit SHA in the Dockerfile default, in the `SDK_REF` build argument in `devcontainer.json`, and in the CI checkout. `devcontainer.json` passes `SDK_REF` explicitly, so the Dockerfile default alone pins nothing.
 - [ ] `drive.sh` has the subcommands `start`, `keys <script>`, `shot <path>`, `record <seconds> <path>`, `stop`, and `smoke`. A key script holds one line per step, `<key> <hold-ms>` or `wait <ms>`.
 
 **You see.**
@@ -169,7 +172,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Lane 4. Run `stop` with no game running. Save `stop-idle.png`. Pass when it exits zero and prints nothing alarming.
 - [ ] Lane 5. Run `record 10 walk.mp4` during `walk-right.keys`. Save `record-frame.png` from frame 150 of the video. Pass when the video is 10 seconds long and the frame shows the game.
 - [ ] Lane 6. Feed a key script with an unknown key name. Save `bad-key.png`. Pass when `drive.sh` exits non-zero and names the bad line.
-- [ ] Lane 7. Rebuild the dev image from scratch. Save `image-build.png`. Pass when the build finishes and `xdotool --version` runs in the image.
+- [ ] Lane 7. Run `xdotool --version`, `Xvfb -help`, `import -version`, and `ffmpeg -version` in the running container. Save `tools.png`. Pass when all four run. The container cannot rebuild its own image, so the operator rebuilds it on the host after the pin changes.
 - [ ] Lane 8. Hold the jump key for 500 ms on level 1. Save `jump.png` at the top of the arc. Pass when Henry is off the floor.
 - [ ] Lane 9. Climb the first ladder with `up` held. Save `climb.png`. Pass when Henry is on the ladder above the floor.
 - [ ] Lane 10. Push and watch the new CI job. Save `ci-smoke.png`. Pass when the smoke job is green.
@@ -217,7 +220,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `tools/parity/scripts/idle.inputs` holds no input for 300 frames and both drivers agree on it. Run `tools/parity/run.sh --script idle`.
+- [ ] `tools/parity/scripts/idle.inputs` holds no input for 300 frames. Its first divergence is a hen field on the first frame where the duck timer reaches 8, because `Game::moveDucks` moves a hen in that slot while upstream `MoveDucks` returns (`chuckie.c:828-861`). List `idle` in `expected-divergent.txt`. CE-7 fixes the slot. Run `tools/parity/run.sh --script idle`.
 - [ ] Remove a script from `expected-divergent.txt` that still diverges, and check that `run.sh --all` fails. Run `tools/parity/run.sh --all`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe.
@@ -229,7 +232,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Lane 5. Run the port driver alone on `jump-left.inputs`. Save `port-jump.png` of the trace. Pass when the trace has one row per input frame.
 - [ ] Lane 6. Play level 1 for 60 seconds with `drive.sh`. Save `play-60s.png`. Pass when the game shows no crash and `debugf` shows no `abort`.
 - [ ] Lane 7. Build STM32 and web with `CHUCKIE_PARITY` off. Save `targets.png`. Pass when both build and neither links the `parity` target.
-- [ ] Lane 8. Corrupt one byte of `third_party/pbrook-chuckie-egg/leveldata.c` in a scratch copy. Save `parity-red.png`. Pass when `run.sh --script idle` reports a divergence.
+- [ ] Lane 8. Corrupt one byte of `third_party/pbrook-chuckie-egg/leveldata.c` in a scratch copy. Save `parity-red.png`. Pass when `run.sh --script idle` reports a divergence before the first frame where the duck timer reaches 8.
 - [ ] Lane 9. Run `run.sh --all` twice. Save `parity-repeat.png`. Pass when both runs print the same lines.
 - [ ] Lane 10. Push and watch CI. Save `ci-parity.png`. Pass when the parity step runs and is green.
 
@@ -257,11 +260,13 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 - [ ] Edit `game.hpp`.
 - [ ] Edit `chuckie_egg.cpp`.
-- [ ] Edit `tools/parity/expected-divergent.txt`.
+- [ ] Create `frame_clock.hpp`.
+- [ ] Create `tools/parity/clock_test.cpp`, and add it to the `parity` target in `CMakeLists.txt`.
 
 **Build.**
 
-- [ ] Set `UPDATE_INTERVAL_MS` to 30, matching `sdl.c:145` upstream. Advance `lastTime` by `UPDATE_INTERVAL_MS` after each `Step`, so the clock in `chuckie_egg.cpp` runs one `Step` per 30 ms and never more than two per `update` call.
+- [ ] Move the clock out of `chuckie_egg.cpp` into `FrameClock` in `frame_clock.hpp`. `FrameClock::due(uint32_t now)` returns how many `Step` calls to run, at one per 30 ms and at most two per call. It advances its last time by 30 ms per step, and it drops the rest of a longer backlog. 30 ms matches `sdl.c:145` upstream.
+- [ ] `update` in `chuckie_egg.cpp` calls `Game::Step` the number of times `FrameClock::due` returns.
 
 **You see.**
 
@@ -269,7 +274,8 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `walk-right`, `walk-left`, `jump-left`, `jump-right`, and `climb` leave `expected-divergent.txt`. Run `tools/parity/run.sh --all`.
+- [ ] `clock_test.cpp` feeds `FrameClock::due` timestamps every 10 ms for 3 seconds and checks for exactly 100 steps. It then jumps 500 ms and checks for 2 steps, then 1 step per 30 ms after that. The trace diff cannot see the clock, because it calls `Step` once per input frame. Run `tools/parity/run.sh --clock`.
+- [ ] Every script that passed at trunk still prints `PASS`. Run `tools/parity/run.sh --all`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe.
 
@@ -280,9 +286,9 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Lane 5. Watch a hen for 10 seconds. Save `hen.png`. Pass when the hen's steps match the original's every-12-frame rate.
 - [ ] Lane 6. Watch the timer for 20 seconds. Save `timer.png`. Pass when the timer drops by the same amount as the original driver over 667 frames.
 - [ ] Lane 7. Run the web build for 30 seconds. Save `web-cadence.png`. Pass when the timer value matches the SDL build within one unit.
-- [ ] Lane 8. Throttle the container CPU with `--cpus 0.2`. Save `slow-cpu.png`. Pass when the game catches up by at most two steps per update and the timer stays correct.
+- [ ] Lane 8. Pause the game with `kill -STOP`, wait 500 ms, and resume it with `kill -CONT`. Save `backlog.png`. Pass when `debugf` shows at most two steps in the first `update` after the resume, and one step per 30 ms after that.
 - [ ] Lane 9. Walk off a ledge. Save `fall.png`. Pass when the fall frame count matches the original.
-- [ ] Lane 10. Run `run.sh --all`. Save `parity.png`. Pass when the five movement scripts print `PASS`.
+- [ ] Lane 10. Run `run.sh --all` and `run.sh --clock`. Save `parity.png`. Pass when both exit zero.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
@@ -311,17 +317,19 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 **Files.**
 
 - [ ] Edit `game.cpp` and `game.hpp`.
+- [ ] Edit `CMakeLists.txt`, `tools/parity/original_driver.c`, `tools/parity/port_driver.cpp`, and `tools/live/drive.sh`.
 - [ ] Edit `tools/parity/expected-divergent.txt`.
 - [ ] Create `tools/parity/scripts/lift-ride.inputs` and `tools/parity/scripts/lift-crush.inputs`.
 
 **Build.**
 
+- [ ] Add a start-level option. `cmake -DCHUCKIE_START_LEVEL=<n>` sets the level a new game starts on. Both drivers take `--level <n>`, and a script's first line can name its level. `drive.sh start --level <n>` builds with that option. Level 3 is the first layout with a lift, because the third header byte of `level1` and `level2` in `levels.cpp` is `0x00`.
 - [ ] Port `PlayerHitLift` (`chuckie.c:421`) into `Game::henryHitLift`, including the Y check and the +10 landing and +9 staying edges.
 - [ ] Port the LIFT mode of `MovePlayer` (`chuckie.c:614`) into `Game::liftHenry`, and the crush death at `chuckie.c:630`.
 
 **You see.**
 
-- [ ] On level 2, Henry jumps onto a lift, rides it up, and steps off onto a ledge. Riding it to the top kills him.
+- [ ] On level 3, Henry jumps onto a lift, rides it up, and steps off onto a ledge. Riding it to the top kills him.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
@@ -329,7 +337,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe.
 
-- [ ] Lane 1. Regression lane against trunk. Jump onto the lift on level 2 at trunk and head. Save `lift-trunk.png` and `lift-head.png`. Pass when head Henry stands on the lift and trunk Henry falls through it.
+- [ ] Lane 1. Regression lane against trunk. Start on level 3 and jump onto the lift at trunk and head. Save `lift-trunk.png` and `lift-head.png`. Pass when head Henry stands on the lift and trunk Henry falls through it.
 - [ ] Lane 2. Ride the lift for 5 seconds. Save `riding.png`. Pass when Henry's y changes by 2 pixels per lift frame.
 - [ ] Lane 3. Step off the lift onto the nearest ledge. Save `step-off.png`. Pass when Henry walks on the ledge.
 - [ ] Lane 4. Ride the lift to the top. Save `crush.png`. Pass when Henry dies.
@@ -350,7 +358,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 **Review gate.** The operator reviews before merge.
 
 - [ ] Copy lane 2 and lane 4 screenshots into `docs/media/ce-5-review-riding.png` and `docs/media/ce-5-review-crush.png`.
-- [ ] Record a 30 to 60 second video of level 2 lift play. Save it as `docs/media/ce-5-review.mp4`.
+- [ ] Record a 30 to 60 second video of level 3 lift play. Save it as `docs/media/ce-5-review.mp4`.
 - [ ] Post the screenshots and the video in chat. Stop at merge-ready. Wait for the operator's click.
 
 **Merge.**
@@ -426,7 +434,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 - [ ] Edit `game.cpp` and `game.hpp`.
 - [ ] Edit `tools/parity/expected-divergent.txt`.
-- [ ] Create `tools/parity/scripts/level-skip-40.inputs`, which uses a debug level skip like upstream's `l` key.
+- [ ] Create `tools/parity/scripts/level-skip-40.inputs`, which uses a debug level skip like upstream's `l` key. Other lanes start on a level with the CE-5 start-level option.
 
 **Build.**
 
@@ -434,6 +442,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Port the difficulty rules. No hens on levels 8 to 15. Five hens from level 24. The mother duck from level 8. `duck_speed` 5 from level 32. The timer and bonus start values, and the egg value `min((level>>2)+1, 10)` x 100.
 - [ ] Rotate turns between players after each death when more than one player is playing.
 - [ ] Draw the mother duck only when `hasBigDuck` is set.
+- [ ] Return from `Game::moveDucks` after the duck-timer slot 8 runs the mother duck, as `chuckie.c:861` does, so no hen moves in that slot.
 
 **You see.**
 
@@ -441,7 +450,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `level-skip-40` prints `PASS`, which covers every rule change up to level 40. Run `tools/parity/run.sh --all`.
+- [ ] `level-skip-40` prints `PASS`, which covers every rule change up to level 40. `idle` leaves `expected-divergent.txt`. Run `tools/parity/run.sh --all`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe.
 
@@ -487,6 +496,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **Build.**
 
+- [ ] Confirm first that SDL's `disk` audio driver works in the container. Run the SDL build with `SDL_AUDIODRIVER=disk` and `SDL_DISKAUDIOFILE=/tmp/audio-check.raw`, and check that the file grows. If it does not, add a PulseAudio null sink to the Dockerfile and `drive.sh` in this PR, and record that change.
 - [ ] Port `MakeSound` (`chuckie.c:690`) and the `squidge` noise onto `blit::channels`. Channel 0 is the square-wave beep and channel 1 is the noise.
 
 **You see.**
@@ -495,9 +505,9 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Add the beep frequency and the noise trigger to `FrameTrace`, and check that `walk-right` and `jump-left` still print `PASS`. Run `tools/parity/run.sh --all`.
+- [ ] Add the beep frequency and the noise trigger to `FrameTrace`, and check that every script that passed at trunk still prints `PASS`. Run `tools/parity/run.sh --all`.
 
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe. Each lane records audio with `ffmpeg` from the PulseAudio null sink.
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `inherit-parent` at the PR head, per the boot recipe. Each lane runs the game with `SDL_AUDIODRIVER=disk` and `SDL_DISKAUDIOFILE=/tmp/swarm-ce-8/worker-<n>/audio.raw`, then renders a spectrogram of that file with `ffmpeg`.
 
 - [ ] Lane 1. Regression lane against trunk. Walk right for 3 seconds at trunk and head. Save `audio-trunk.png` and `audio-head.png` spectrograms. Pass when trunk is silent and head shows a beep every other frame.
 - [ ] Lane 2. Climb a ladder. Save `climb-audio.png`. Pass when the beep pitch differs from walking.
@@ -506,7 +516,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Lane 5. Take grain. Save `grain-audio.png`. Pass when a shorter noise burst starts on that frame.
 - [ ] Lane 6. Stand still for 5 seconds. Save `idle-audio.png`. Pass when no sound plays.
 - [ ] Lane 7. Reach game over. Save `game-over-audio.png`. Pass when sound stops.
-- [ ] Lane 8. Play the web build. Save `web-audio.png`. Pass when the browser records the walking beep.
+- [ ] Lane 8. Play the web build in headless Chromium and read its console log. Save `web-audio.png`. Pass when `debugf` shows a beep trigger on the walking frames.
 - [ ] Lane 9. Build STM32. Save `stm32-audio-build.png`. Pass when it builds with no new warnings.
 - [ ] Lane 10. Run `run.sh --all`. Save `parity.png`. Pass when every script that passed before still passes.
 
@@ -612,7 +622,7 @@ No prototype ran before this plan. The open questions stay unproven, and each is
 
 - **No control skill for 32Blit.** CE-2 builds `tools/live/drive.sh` to fill that gap. Until CE-2 lands, CE-1 lanes drive `Xvfb` by hand.
 - **Ten live lanes per PR is a lot for a hobby port.** The plan template requires them. The operator can cut CE-1 and CE-2 to three lanes each without losing real coverage.
-- **The SDK is unpinned.** CI and the Dockerfile both use the SDK's default branch, so an SDK change can break a build in the middle of the stack. CE-2 pins `SDK_REF` in the Dockerfile and the CI checkout to one SHA.
+- **The SDK is unpinned.** CI and the Dockerfile both use the SDK's default branch, so an SDK change can break a build in the middle of the stack. CE-2 pins `SDK_REF` to one SHA in the Dockerfile, in `devcontainer.json`, and in the CI checkout.
 - **Upstream's `abort()` at `chuckie.c:884`.** The original crashes when the timer reaches zero. The CE-6 trace driver patches it to a death, and the port does the same.
 - **Hen pseudo-random sequence.** Hen paths depend on the LFSR reseed each level (`chuckie.c:1105-1106`). Any change to the order of `frobRandom` calls breaks the trace diff in CE-6 and CE-7, which is the point.
 - **A & F Software's rights in the original game.** Upstream ships the level and sprite data under GPLv3 and has done so since 2011. The port inherits that position and credits A & F, but it cannot grant more than upstream holds.
