@@ -295,21 +295,38 @@ hold_for() {
   HOLD_PID=""
 }
 
+RESTORE_TRAPS=""
+
+install_cleanup() {
+  local cleanup="$1" t exit_cmd=""
+  RESTORE_TRAPS=""
+  if [ "$BASHPID" = "$$" ]; then
+    RESTORE_TRAPS="$(trap -p INT TERM EXIT)"
+    t="$(trap -p EXIT)"
+    if [ -n "$t" ]; then
+      eval "set -- $t"
+      exit_cmd="$3"
+    fi
+  fi
+  trap "$cleanup; $exit_cmd" EXIT
+  trap "$cleanup; trap - INT TERM EXIT; $RESTORE_TRAPS; kill -s INT \$BASHPID" INT
+  trap "$cleanup; trap - INT TERM EXIT; $RESTORE_TRAPS; kill -s TERM \$BASHPID" TERM
+}
+
+restore_traps() {
+  trap - INT TERM EXIT
+  eval "$RESTORE_TRAPS"
+}
+
 cmd_keys() {
   [ $# -eq 1 ] || die "usage: drive.sh keys <script>"
   need xdotool
-  local file steps key ms saved
+  local file steps key ms
   file="$(resolve_script "$1")"
   steps="$(parse_keys "$file")" || exit 2
   [ -n "$steps" ] || return 0
   game_running || die "game is not running, run: drive.sh start"
-  saved=""
-  if [ "$BASHPID" = "$$" ]; then
-    saved="$(trap -p INT TERM EXIT)"
-  fi
-  trap 'release_held' EXIT
-  trap 'release_held; trap - INT TERM EXIT; eval "$saved"; kill -s INT $BASHPID' INT
-  trap 'release_held; trap - INT TERM EXIT; eval "$saved"; kill -s TERM $BASHPID' TERM
+  install_cleanup release_held
   while read -r key ms; do
     if [ "$key" = wait ]; then
       ms_sleep "$ms"
@@ -320,8 +337,7 @@ cmd_keys() {
       release_held
     fi
   done <<<"$steps"
-  trap - INT TERM EXIT
-  eval "$saved"
+  restore_traps
 }
 
 cmd_shot() {
@@ -332,17 +348,24 @@ cmd_shot() {
   import -window root "$1"
 }
 
+stop_record() {
+  stop_proc "$STATE/record.pid" INT || true
+}
+
 cmd_record() {
   [ $# -eq 2 ] || die "usage: drive.sh record <seconds> <path>"
   need ffmpeg
   display_up || die "no display $DISPLAY, run: drive.sh start"
   mkdir -p "$(dirname "$2")" "$STATE"
+  ! pid_alive "$STATE/record.pid" || die "a recording already runs on lane $LANE (pid $(pid_of "$STATE/record.pid")), run drive.sh stop first"
   local rc=0
+  install_cleanup stop_record
   ffmpeg -nostdin -loglevel error -y -f x11grab -draw_mouse 0 -framerate 30 -video_size "${SCREEN%x*}" -i "$DISPLAY" \
     -t "$1" -c:v libx264 -pix_fmt yuv420p "$2" &
   record_pid "$STATE/record.pid" $!
   wait $! || rc=$?
-  rm -f "$STATE/record.pid"
+  stop_record
+  restore_traps
   [ "$rc" = 0 ] || [ "$rc" = 255 ]
 }
 

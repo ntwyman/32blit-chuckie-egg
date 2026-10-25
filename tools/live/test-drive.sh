@@ -405,6 +405,73 @@ t_game_log_shows_debugf_while_running() {
   [ "$seen" = yes ] && [ "$running" = yes ]
 }
 
+t_cancelled_record_stops_its_recorder() {
+  local lane=$((LANE_BASE + 3)) state signal rec ok=0
+  state="$(lane_state $lane)"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  for signal in TERM INT; do
+    LIVE_LANE=$lane "$DRIVE" record 30 "$TMP/cancel.mp4" 2>/dev/null &
+    rec=$!
+    for _ in $(seq 1 50); do
+      [ "$(recorder_count $lane)" -ge 1 ] && break
+      sleep 0.1
+    done
+    kill "-$signal" "$rec"
+    wait "$rec" 2>/dev/null
+    sleep 0.5
+    [ "$(recorder_count $lane)" = 0 ] && [ ! -e "$state/record.pid" ] || ok=1
+    pkill -f "ffmpeg.* -i :$((99 + lane)) " 2>/dev/null
+  done
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  return $ok
+}
+
+t_overlapping_record_is_rejected() {
+  local lane=$((LANE_BASE + 3)) state rec out rc ok=0
+  state="$(lane_state $lane)"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  LIVE_LANE=$lane "$DRIVE" record 30 "$TMP/first.mp4" 2>/dev/null &
+  rec=$!
+  for _ in $(seq 1 50); do
+    [ "$(recorder_count $lane)" -ge 1 ] && break
+    sleep 0.1
+  done
+  out="$(LIVE_LANE=$lane "$DRIVE" record 1 "$TMP/second.mp4" 2>&1)"
+  rc=$?
+  [ "$rc" != 0 ] && [[ "$out" == *"already runs"* ]] || ok=1
+  [ "$(recorder_count $lane)" = 1 ] && [ -s "$state/record.pid" ] || ok=1
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  wait "$rec" 2>/dev/null
+  return $ok
+}
+
+t_record_leaves_the_callers_traps_alone() {
+  bash -c '
+    source "$1"
+    STATE="$2"
+    display_up() { return 0; }
+    ffmpeg() { sleep 0.2; }
+    trap "touch \"$3\"" EXIT
+    cmd_record 1 "$2/out.mp4"
+    [[ "$(trap -p EXIT)" == *touch* ]] || exit 1
+    trap - EXIT
+    [ ! -e "$3" ]
+  ' _ "$DRIVE" "$TMP/rec-state" "$TMP/rec-trap-fired"
+}
+
+t_aborted_keys_run_the_callers_exit_trap() {
+  printf 'z 100\n' >"$TMP/abort.keys"
+  rm -f "$TMP/abort-trap-fired"
+  bash -c '
+    source "$1"
+    game_running() { return 0; }
+    xdotool() { [ "$1" != keydown ]; }
+    trap "touch \"$2\"" EXIT
+    cmd_keys "$3"
+  ' _ "$DRIVE" "$TMP/abort-trap-fired" "$TMP/abort.keys" 2>/dev/null
+  [ -e "$TMP/abort-trap-fired" ]
+}
+
 t_start_keeps_xvfb_from_resetting() {
   local lane=$((LANE_BASE + 3)) rc=0
   LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
@@ -439,6 +506,10 @@ t_start_level_refuses_a_running_game() {
 
 check "ce-3: game.log shows debugf lines while the game runs" t_game_log_shows_debugf_while_running
 check "fix: start runs Xvfb with -noreset so the readiness probe cannot reset it" t_start_keeps_xvfb_from_resetting
+check "fix: a cancelled record stops its recorder and removes record.pid" t_cancelled_record_stops_its_recorder
+check "fix: a second record on a lane with a live record.pid is rejected" t_overlapping_record_is_rejected
+check "fix: record leaves the caller's traps alone" t_record_leaves_the_callers_traps_alone
+check "fix: an aborted keys run still runs the caller's EXIT trap" t_aborted_keys_run_the_callers_exit_trap
 check "ce-3: start --level rejects bad values" t_start_level_rejects_bad_values
 check "ce-3: start --level refuses a running game" t_start_level_refuses_a_running_game
 check "ce-3: start --level refuses LIVE_BIN" t_start_level_refuses_live_bin
