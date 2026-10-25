@@ -309,10 +309,10 @@ t_failed_golden_keeps_logs() {
 }
 
 t_failing_checks_leave_artifacts() {
-  local lane=$((LANE_BASE + 0)) art="$TMP/artifacts" fake="$TMP/fake-drive.sh" rc
+  local lane=$((LANE_BASE + 10)) art="$TMP/artifacts" fake="$TMP/fake-drive.sh" rc
   printf '#!/bin/bash\ns=/tmp/chuckie-live-$((99 + LIVE_LANE))\nmkdir -p "$s" "%s/out/lane$LIVE_LANE"\necho state >"$s/game.log"\necho frame >"%s/out/lane$LIVE_LANE/smoke.png"\nexit 1\n' "$LIVE" "$LIVE" >"$fake"
   chmod +x "$fake"
-  LIVE_TEST_ONLY="item 2: an empty script is a no-op" LIVE_TEST_ARTIFACTS="$art" LIVE_TEST_LANE_BASE=$LANE_BASE DRIVE="$fake" "$LIVE/test-drive.sh" >/dev/null 2>&1
+  LIVE_TEST_ONLY="item 2: an empty script is a no-op" LIVE_TEST_ARTIFACTS="$art" LIVE_TEST_LANE_BASE=$lane DRIVE="$fake" "$LIVE/test-drive.sh" >/dev/null 2>&1
   rc=$?
   [ "$rc" = 1 ] && [ -s "$art/state-lane$lane/game.log" ] && [ -s "$art/lane$lane/smoke.png" ]
 }
