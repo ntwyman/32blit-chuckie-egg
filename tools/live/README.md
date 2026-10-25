@@ -37,11 +37,14 @@ wait <ms>
 
 | Key | Game input |
 | --- | --- |
-| `up`, `down`, `left`, `right` | The d-pad. `w`, `a`, `s`, `d` work too. |
-| `z` | The A button. It starts the game, readies a player, and jumps. |
-| `x`, `c`, `v` | The B, X, and Y buttons. |
+| `up`, `down`, `left`, `right` | The d-pad. |
+| `w`, `a`, `s`, `d` | The d-pad up, left, down, and right. |
+| `z`, `x`, `c`, `v` | A, B, X, and Y. `z` starts the game, readies a player, and jumps. |
 | `u`, `i`, `o`, `p` | A, B, X, and Y again, as in the SDK's key map. |
-| `1`, `2`, `3`, `esc` | Home, menu, and the joystick button. |
+| `1` | Home. |
+| `2` | Menu. |
+| `3` | The joystick button. |
+| `esc`, `escape` | Menu, the same as `2`. |
 
 Join keys with `+` to hold them together, as in `left+up 330`.
 
@@ -66,9 +69,9 @@ The game steps on wall-clock time, so a screenshot at a fixed delay shows a diff
 
 `smoke` retries only when the run itself failed: the game or its window did not start, the recorder died, or the recording has no level-1 frame. It prints why before each retry. A pixel mismatch fails at once.
 
-One HUD pixel is heap garbage that differs per process: the TIME sprite reads past the end of the sprite sheet (issue #17). Until that is fixed, `smoke` fails on the runs where that pixel differs from the one baked into the golden image. Regenerate the golden image once the fix lands.
+The selected frame is the same image on every run, so the zero-pixel comparison is exact. The golden image was regenerated after the sprite-sheet fix (issue #17), which removed the per-process garbage pixel under TIME. The frame's position in the recording varies with host load, but its pixels do not.
 
-`smoke` and `golden` need exactly 640x480. They stop with a message for any other `LIVE_SCREEN`.
+`smoke` and `golden` need `LIVE_SCREEN=640x480x24`, the default. They stop with a message for any other value, including `640x480`.
 
 On a failed `smoke`, `out/lane<n>/` holds `smoke.png` (the selected frame, or the last frame when none was level 1) and `game.log`.
 
@@ -80,23 +83,23 @@ To regenerate the golden image after a deliberate change to the first frame of l
 | --- | --- | --- |
 | `LIVE_LANE` | `0` | Lane number. The display is `:<99+lane>`. |
 | `LIVE_DISPLAY` | `99+lane` | Display number. |
-| `LIVE_SCREEN` | `640x480x24` | `Xvfb` screen. Use 640x480 or larger for the other commands. `smoke` and `golden` need exactly 640x480. |
+| `LIVE_SCREEN` | `640x480x24` | `Xvfb` screen. Use 640x480 or larger for the other commands. `smoke` and `golden` need exactly `640x480x24`. |
 | `LIVE_BIN` | `build.sdl/chuckie-egg` | The game binary. |
 | `LIVE_STATE` | `/tmp/chuckie-live-<display>` | Pid files, logs, and recordings. |
 | `LIVE_OUT_DIR` | `tools/live/out/lane<n>` | Where `smoke` writes `smoke.png`. |
 | `LIVE_SMOKE_ATTEMPTS` | `5` | How many runs `smoke` tries when a run itself fails. |
 | `LIVE_WINDOW_WAIT` | `10` | Seconds `start` waits for `Xvfb` to answer, and again for the game window, before it fails. A busy CI runner can take several seconds to start `Xvfb` when two lanes start together. |
 
-`LIVE_LANE`, `LIVE_DISPLAY`, `LIVE_SMOKE_ATTEMPTS`, and `LIVE_WINDOW_WAIT` must be whole numbers.
+`LIVE_LANE`, `LIVE_DISPLAY`, `LIVE_SMOKE_ATTEMPTS`, and `LIVE_WINDOW_WAIT` must be whole numbers, read as decimal (`08` is 8). `LIVE_LANE` runs from 0 to 899, `LIVE_DISPLAY` to 65535, `LIVE_SMOKE_ATTEMPTS` to 1000, and `LIVE_WINDOW_WAIT` to 3600.
 
 ## Processes and logs
 
 The pid files record each process's start time as well as its pid. `start` and `stop` act on a pid only when it is still the process the driver started, so a reused pid is never killed. `stop` sends `TERM`, waits up to three seconds, then sends `KILL`. It also stops any recorder the lane started, including a background `record`.
 
-`stop` removes recordings and logs. After a failed `start` or `smoke` it keeps the logs and prints the state folder.
+`stop` removes recordings and logs. After a failed `start`, `smoke`, or `golden` it keeps the logs and prints the state folder.
 
 `start` removes a stale `/tmp/.X<n>-lock` only when no live process holds it. If a live process holds the lock and the display does not answer, `start` fails and names the pid.
 
 ## Tests
 
-`tools/live/test-drive.sh` checks the driver's edge cases and finishes in under a minute. `tools/live/test-smoke.sh` runs `smoke` ten times and checks frame selection. Set `DRIVE` to test another copy of `drive.sh`.
+`tools/live/test-drive.sh` checks the driver's edge cases and finishes in under a minute. `tools/live/test-smoke.sh` runs `smoke` ten times and checks that every selected frame is byte-identical and matches the golden image. It reports how far the frame position moved as information only. When a check in `test-drive.sh` fails, it leaves the lanes' frames and logs under `tools/live/out/test-drive/`. Set `DRIVE` to test another copy of `drive.sh`.
