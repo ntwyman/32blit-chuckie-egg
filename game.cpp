@@ -467,7 +467,7 @@ void Game::jumpHenry(Henry &h) {
     h.falling++;
     if (h.pos.y == 19) {
         h.speed.y = -1;
-        h.falling = 10;
+        h.falling = 12;
     } else if (this->canGrabLadder(h, speedY)) {
         return;
     }
