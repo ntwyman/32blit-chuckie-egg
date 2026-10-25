@@ -20,6 +20,10 @@ Point Game::tilePosition(Point &tile) {
     return this->tilePosition(tile.x, tile.y);
 }
 
+Point Game::screenPosition(int x, int y) {
+    return Point(X_OFFSET + x, this->screenSize.h - 1 - y);
+}
+
 unsigned int Game::getTile(int x, int y) {
     if (x < 0 || x >= COLUMNS || y < 0 || y >= ROWS) {
         return 0;
@@ -127,7 +131,7 @@ void Game::loadLevel() {
     this->duckTimer = 0;
     this->duckRate = levelNumber < 32 ? 8 : 5;
     this->currentDuck = 0;
-    this->bigDuck.pos = Point(X_OFFSET + 4, 36);
+    this->bigDuck.pos = this->screenPosition(4, 0xcc);
     this->bigDuck.dPos = Point(0, 0);
     this->bigDuck.frame = false;
     this->bigDuck.dir = 0;
@@ -143,8 +147,7 @@ void Game::loadLevel() {
 
     for (int i = 0; i < this->numDucks; i++) {
         auto &duck = this->ducks[i];
-        duck.pos = this->tilePosition(duck.tile);
-        duck.pos.y -= 12; // Ducks are tall.
+        duck.pos = this->screenPosition(duck.tile.x << 3, (duck.tile.y << 3) + 0x14);
         duck.state = BORED;
         duck.dir = DIR_R;
     }
@@ -153,14 +156,11 @@ void Game::loadLevel() {
 
     auto &h = this->henry;
     h.tile = {7, 2};
-    h.pos = tilePosition(this->henry.tile);
+    h.pos = this->screenPosition(0x3c, 0x20);
     h.partial = {7, 0};
-    h.pos.x += 7;
-    h.pos.y -= 8;   // Henry is 2 tiles tall
     h.state = HenryState::WALK; // player_mode = PLAYER_WALK
     h.priorState = HenryState::WALK;
     h.dir = DIR_R;
-    // this->buttonMask = BUTTONS_ALL;
     debugf("Loaded level %d, Has lift: %s\r\n", this->currentLevel, this->hasLift ? "true" : "false");
     if (this->hasLift) {
         debugf("X: %d, Y0: %d, Y1: %d\r\n", this->liftX, this->liftY[0], this->liftY[1]);
@@ -467,7 +467,7 @@ void Game::jumpHenry(Henry &h) {
         fallRate = 6;
     h.speed.y = 2 - fallRate;
     h.falling++;
-    if (h.pos.y == 20) { // Top
+    if (h.pos.y == 19) { // Top
         h.speed.y = -1;
         h.falling = 10;
     } else if (this->canGrabLadder(h, speedY)) {
@@ -634,8 +634,6 @@ void Game::moveLifts() {
 }
 
 void Game::moveBigDuck() {
-
-    this->duckTimer = 0;
     if (!this->hasBigDuck) {
         return;
     }
@@ -659,7 +657,7 @@ void Game::moveBigDuck() {
             bd.dPos.y ++;
     }
     // Don't go off the bottom of the screen
-    if ((bd.pos.y + bd.dPos.y ) > 200) {
+    if ((bd.pos.y + bd.dPos.y ) > 199) {
         bd.dPos.y = -bd.dPos.y;
     }
     int16_t newX = bd.pos.x + bd.dPos.x;
@@ -685,6 +683,11 @@ unsigned int Game::frobRandom(){
 void Game::moveDucks() {
 
     this->duckTimer++;
+    if (this->duckTimer == 8) {
+        this->duckTimer = 0;
+        this->moveBigDuck();
+        return;
+    }
     if (this->duckTimer == 4) {
         if (this->pauseDuckBonus != 0) {
             this->pauseDuckBonus--;
@@ -697,10 +700,6 @@ void Game::moveDucks() {
             this->reduceBonus();
         }
         return;
-    }
-
-    if (this->duckTimer == 8) {
-        this->moveBigDuck();
     }
 
     if (this->currentDuck == 0)
@@ -867,7 +866,7 @@ bool Game::cannotMove(Henry &h) {
         return false;
     }
     if (h.speed.x < 0) {
-        if (h.pos.x <= X_OFFSET+ 2) {
+        if (h.pos.x <= X_OFFSET) {
             return true;
         }
         if (h.partial.x >= 2 || h.speed.y == 2) {
@@ -986,7 +985,7 @@ void Game::Step(uint8_t buttons) {
             this->moveDucks();
             this->detectCollisions();
 
-            if (this->henry.pos.y > 229 || this->isDead) { // DED
+            if (this->henry.pos.y > 222 || this->isDead) { // DED
                 this->state = GameState::GAME_OVER;
                 break;
             }

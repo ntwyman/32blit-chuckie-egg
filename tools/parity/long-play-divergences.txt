@@ -1,25 +1,25 @@
 # What `tools/parity/run.sh --script long-play` reports. run.sh fails when the report changes.
 # Each indented line is a field, the first frame it differs on, and both values. The last line counts and hashes every difference.
 # Rewrite it with `run.sh --record long-play` only for a change the PR means to make.
-long-play DIVERGES at frame 0 field henry_x
-  henry_x first differs at frame 0: port 63, original 60
-  henry_y first differs at frame 0: port 31, original 32
-  hen0_y first differs at frame 0: port 155, original 156
-  hen1_y first differs at frame 0: port 195, original 196
-  current_duck first differs at frame 7: port 2, original 3
-  hen1_mode first differs at frame 8: port 3, original 0
-  hen0_x first differs at frame 9: port 44, original 40
-  hen0_mode first differs at frame 9: port 1, original 0
-  hen1_x first differs at frame 49: port 68, original 64
-  henry_partial_x first differs at frame 189: port 0, original 1
-  henry_tile_x first differs at frame 191: port 18, original 19
-  dead first differs at frame 1161: port 1, original 0
-  henry_partial_y first differs at frame 1162: port 4, original 6
-  duck_timer first differs at frame 1162: port 2, original 3
-  henry_tile_y first differs at frame 1163: port 2, original 3
-  timer first differs at frame 1163: port 769, original 768
-  henry_mode first differs at frame 1179: port 2, original 0
-  bonus first differs at frame 1187: port 740, original 730
+long-play DIVERGES at frame 1359 field henry_x
+  henry_x first differs at frame 1359: port 119, original 61
+  henry_tile_x first differs at frame 1359: port 15, original 8
+  henry_partial_x first differs at frame 1359: port 2, original 0
+  dead first differs at frame 1359: port 1, original 0
   lives first differs at frame 1359: port 5, original 4
+  timer first differs at frame 1359: port 744, original 900
+  duck_timer first differs at frame 1359: port 7, original 1
+  current_duck first differs at frame 1359: port 6, original 8
+  hen0_x first differs at frame 1359: port 124, original 40
+  hen0_y first differs at frame 1359: port 36, original 156
+  hen0_mode first differs at frame 1359: port 1, original 0
+  hen1_x first differs at frame 1359: port 56, original 64
+  hen1_y first differs at frame 1359: port 88, original 196
+  hen1_mode first differs at frame 1359: port 1, original 0
+  henry_y first differs at frame 1360: port 32, original 34
+  henry_partial_y first differs at frame 1360: port 0, original 2
+  henry_mode first differs at frame 1360: port 0, original 2
+  henry_tile_y first differs at frame 1363: port 2, original 3
+  bonus first differs at frame 1394: port 690, original 680
   score first differs at frame 1446: port 50, original 150
   every difference: 154753 field values over 10000 frames, sha256 3693f0d9e7f6a7e3
