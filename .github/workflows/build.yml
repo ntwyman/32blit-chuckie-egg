@@ -218,14 +218,18 @@ jobs:
         cmake -B build.sdl -DCMAKE_BUILD_TYPE=$BUILD_TYPE "-DPython_EXECUTABLE=${{steps.python.outputs.python-path}}" -D32BLIT_DIR=$GITHUB_WORKSPACE/32blit-sdk
         cmake --build build.sdl -j 2
 
+    - name: Driver tests
+      working-directory: main
+      run: tools/live/test-drive.sh
+
     - name: Smoke test
       working-directory: main
       run: tools/live/drive.sh smoke
 
-    - name: Upload the smoke screenshot
+    - name: Upload the smoke frame and game log
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: smoke-png
-        path: main/tools/live/out/smoke.png
+        path: main/tools/live/out
         if-no-files-found: ignore
