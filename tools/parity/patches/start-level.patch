@@ -14,7 +14,7 @@
        current_player = i;
        player_data->lives = 5;
 -      level[i] = 0;
-+      level[i] = current_level = parity_start_level;
++      level[i] = parity_start_level;
        for (j = 0; j < 8; j++) {
  	  player_data->score[j] = 0;
        }
