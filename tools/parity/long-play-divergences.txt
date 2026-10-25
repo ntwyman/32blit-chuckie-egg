@@ -22,4 +22,4 @@ long-play DIVERGES at frame 1359 field henry_x
   henry_tile_y first differs at frame 1363: port 2, original 3
   bonus first differs at frame 1394: port 690, original 680
   score first differs at frame 1446: port 50, original 150
-  every difference: 154753 field values over 10000 frames, sha256 3693f0d9e7f6a7e3
+  every difference: 121524 field values over 8641 frames, sha256 c017a4a36d13fb9c
