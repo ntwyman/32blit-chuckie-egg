@@ -34,7 +34,7 @@ enum GameState {HOW_MANY, READY_PLAYER, LEVEL, GAME_OVER};
 #define BUTTONS_ALL (BUTTON_RIGHT | BUTTON_LEFT | BUTTON_DOWN | BUTTON_UP | BUTTON_A)
 
 // Offset into tile to get on ladder
-#define LADDER_PARTIAL_X 0
+#define LADDER_PARTIAL_X 3
 
 /* Direction bitflags  */
 #define DIR_L 1

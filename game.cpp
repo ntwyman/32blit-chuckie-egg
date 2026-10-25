@@ -922,7 +922,7 @@ void Game::detectCollisions() {
     /* Little ducks */
     for (int n = 0; n < this->numDucks; n++) {
         if ((unsigned)((this->ducks[n].pos.x - this->henry.pos.x) + 5) < 0x0b
-            && (unsigned)((this->ducks[n].pos.y - 1) - this->henry.pos.y + 0xe) < 0x1d)
+            && (unsigned)(this->henry.pos.y - this->ducks[n].pos.y + 0xd) < 0x1d)
             this->isDead = true;
     }
     /* Big duck */
@@ -930,7 +930,7 @@ void Game::detectCollisions() {
         return;
     if ((unsigned)(this->bigDuck.pos.x - this->henry.pos.x + 9) >= 0x0b)
         return;
-    if ((unsigned)(this->bigDuck.pos.y - this->henry.pos.y + 9) >= 0x1d)
+    if ((unsigned)(this->henry.pos.y - this->bigDuck.pos.y + 9) >= 0x1d)
         return;
     this->isDead = true;
 
