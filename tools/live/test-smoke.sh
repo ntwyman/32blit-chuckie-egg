@@ -7,9 +7,9 @@ LIVE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DRIVE="${DRIVE:-$LIVE/drive.sh}"
 GOLDEN="${LIVE_GOLDEN:-$LIVE/golden/level1-start.png}"
 RUNS="${RUNS:-10}"
-SAME_AS_GOLDEN_AE="${SAME_AS_GOLDEN_AE:-8}"
+SAME_AS_GOLDEN_AE=0
 TMP="$(mktemp -d)"
-LANE=23
+LANE="${LIVE_TEST_LANE:-23}"
 failures=0
 
 cleanup() {
