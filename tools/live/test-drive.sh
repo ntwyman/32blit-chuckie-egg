@@ -8,14 +8,25 @@ DRIVE="${DRIVE:-$LIVE/drive.sh}"
 TMP="$(mktemp -d)"
 LANE_BASE="${LIVE_TEST_LANE_BASE:-10}"
 LANES="$(seq "$LANE_BASE" "$((LANE_BASE + 9))")"
+ARTIFACTS="${LIVE_TEST_ARTIFACTS:-$LIVE/out/test-drive}"
 failures=0
+
+keep_artifacts() {
+  local lane="$1" state="/tmp/chuckie-live-$((99 + $1))"
+  [ -d "$LIVE/out/lane$lane" ] && cp -r "$LIVE/out/lane$lane" "$ARTIFACTS/lane$lane"
+  [ -d "$state" ] && cp -r "$state" "$ARTIFACTS/state-lane$lane"
+  return 0
+}
 
 cleanup() {
   local lane
+  [ "$failures" = 0 ] || mkdir -p "$ARTIFACTS/logs"
   for lane in $LANES; do
     LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+    [ "$failures" = 0 ] || keep_artifacts "$lane"
     rm -rf "/tmp/chuckie-live-$((99 + lane))" "$LIVE/out/lane$lane"
   done
+  [ "$failures" = 0 ] || cp "$TMP"/*.log "$ARTIFACTS/logs/" 2>/dev/null
   pkill -f "$TMP/" 2>/dev/null
   rm -rf "$TMP"
 }
@@ -24,6 +35,7 @@ trap cleanup EXIT
 check() {
   local name="$1"
   shift
+  [ -z "${LIVE_TEST_ONLY:-}" ] || [ "$name" = "$LIVE_TEST_ONLY" ] || return 0
   if "$@"; then
     echo "ok   $name"
   else
@@ -66,9 +78,13 @@ t_rejects_empty_combo_parts() {
 
 t_readme_lists_every_accepted_key() {
   local key
-  for key in u i o p; do
+  for key in up down left right w a s d z x c v u i o p 1 2 3 esc escape; do
     grep -q "^| .*\`$key\`" "$LIVE/README.md" || return 1
   done
+}
+
+t_readme_has_no_stale_heap_garbage_note() {
+  ! grep -q 'heap garbage\|Until that is fixed' "$LIVE/README.md"
 }
 
 t_stop_spares_a_foreign_pid() {
@@ -237,6 +253,76 @@ t_failed_smoke_leaves_artifacts() {
   [ "$(grep -c 'selected frame' <<<"$out")" = 1 ] && [[ "$out" != *retrying* ]]
 }
 
+t_numbers_parse_as_decimal() {
+  local out
+  [ "$(LIVE_LANE=08 "$DRIVE" stop 2>&1)" = "stop: nothing running" ] || return 1
+  [ "$(LIVE_LANE=010 bash -c 'source "$1"; echo "$DISPLAY"' _ "$DRIVE")" = ":109" ] || return 1
+  [ "$(LIVE_WINDOW_WAIT=08 bash -c 'source "$1"; echo "$WINDOW_WAIT"' _ "$DRIVE")" = 8 ] || return 1
+  out="$(LIVE_LANE=00000000000000000000000 "$DRIVE" stop 2>&1)"
+  [ $? != 0 ] && [[ "$out" == *"LIVE_LANE must be"* ]] || return 1
+  out="$(LIVE_LANE=900 "$DRIVE" stop 2>&1)"
+  [ $? != 0 ] && [[ "$out" == *"0 to 899"* ]] || return 1
+  out="$(LIVE_WINDOW_WAIT=99999999999999999999 "$DRIVE" stop 2>&1)"
+  [ $? != 0 ] && [[ "$out" == *"LIVE_WINDOW_WAIT must be"* ]]
+}
+
+t_start_spares_a_lock_held_by_another_user() {
+  local lane=$((LANE_BASE + 8)) lock rc kept=0
+  kill -0 1 2>/dev/null && return 0
+  lock="/tmp/.X$((99 + lane))-lock"
+  printf '%10d\n' 1 >"$lock"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1
+  rc=$?
+  [ -f "$lock" ] && kept=1
+  rm -f "$lock"
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$rc" != 0 ] && [ "$kept" = 1 ]
+}
+
+t_smoke_needs_the_exact_screen() {
+  local screen out
+  for screen in 640x480 640x480x16; do
+    out="$(LIVE_LANE=$((LANE_BASE + 7)) LIVE_SCREEN=$screen LIVE_SMOKE_ATTEMPTS=1 "$DRIVE" smoke 2>&1)"
+    [ $? != 0 ] && [[ "$out" == *"640x480x24"* ]] || return 1
+  done
+}
+
+t_last_attempt_does_not_say_retrying() {
+  local lane=$((LANE_BASE + 6)) out
+  printf '#!/bin/sh\nexit 1\n' >"$TMP/crash-fast.sh"
+  chmod +x "$TMP/crash-fast.sh"
+  out="$(LIVE_LANE=$lane LIVE_BIN="$TMP/crash-fast.sh" LIVE_OUT_DIR="$TMP/last" LIVE_SMOKE_ATTEMPTS=2 "$DRIVE" smoke 2>&1)"
+  [ $? != 0 ] || return 1
+  [[ "$out" == *"attempt 1 of 2: run failed, retrying"* ]] || return 1
+  [[ "$out" == *"attempt 2 of 2: run failed, no attempts remain"* ]] && [[ "$out" != *"attempt 2 of 2: run failed, retrying"* ]]
+}
+
+t_failed_golden_keeps_logs() {
+  local lane=$((LANE_BASE + 7)) state out rc
+  state="$(lane_state $lane)"
+  out="$(LIVE_LANE=$lane "$DRIVE" golden /proc/no-such-dir/golden.png 2>&1)"
+  rc=$?
+  [ -e "$state/game.log" ] && [[ "$out" == *"$state"* ]] && [ "$rc" != 0 ]
+  local ok=$?
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  return $ok
+}
+
+t_failing_checks_leave_artifacts() {
+  local lane=$((LANE_BASE + 0)) art="$TMP/artifacts" fake="$TMP/fake-drive.sh" rc
+  printf '#!/bin/bash\ns=/tmp/chuckie-live-$((99 + LIVE_LANE))\nmkdir -p "$s" "%s/out/lane$LIVE_LANE"\necho state >"$s/game.log"\necho frame >"%s/out/lane$LIVE_LANE/smoke.png"\nexit 1\n' "$LIVE" "$LIVE" >"$fake"
+  chmod +x "$fake"
+  LIVE_TEST_ONLY="item 2: an empty script is a no-op" LIVE_TEST_ARTIFACTS="$art" LIVE_TEST_LANE_BASE=$LANE_BASE DRIVE="$fake" "$LIVE/test-drive.sh" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" = 1 ] && [ -s "$art/state-lane$lane/game.log" ] && [ -s "$art/lane$lane/smoke.png" ]
+}
+
+t_ci_runs_smoke_after_failed_driver_tests() {
+  local root="$LIVE/../.." step
+  step="$(awk '/- name: Smoke test/ { on = 1; print; next } on && /- name:/ { exit } on { print }' "$root/.github/workflows/build.yml")"
+  [[ "$step" == *"if:"* ]] && [[ "$step" == *"!cancelled()"* ]]
+}
+
 t_smoke_ignores_a_script_in_the_current_directory() {
   local d="$TMP/hijack" out
   mkdir -p "$d"
@@ -272,6 +358,14 @@ check "item 9: start spares a held display lock" t_start_spares_a_held_display_l
 check "lanes: start waits for a slow Xvfb" t_start_waits_for_a_slow_xvfb
 check "item 9: a non-numeric LIVE_LANE is rejected" t_rejects_a_non_numeric_lane
 check "item 9: a failed smoke leaves the frame and game.log" t_failed_smoke_leaves_artifacts
+check "item 1: README has no stale heap garbage note" t_readme_has_no_stale_heap_garbage_note
+check "item 4: the last attempt says no attempts remain" t_last_attempt_does_not_say_retrying
+check "item 5: numbers parse as decimal and are bounded" t_numbers_parse_as_decimal
+check "item 6: start spares a lock held by another user" t_start_spares_a_lock_held_by_another_user
+check "item 7: smoke needs exactly 640x480x24" t_smoke_needs_the_exact_screen
+check "item 8: CI runs smoke after failed driver tests" t_ci_runs_smoke_after_failed_driver_tests
+check "item 8: failing checks leave frames and logs" t_failing_checks_leave_artifacts
+check "item 9: a failed golden keeps logs" t_failed_golden_keeps_logs
 check "item 10: a bare name does not pick up the current directory first" t_smoke_ignores_a_script_in_the_current_directory
 check "item 10: an explicit path uses the named file" t_explicit_path_uses_the_named_file
 

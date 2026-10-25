@@ -38,8 +38,8 @@ run_smoke() {
   echo $? >"$TMP/smoke.rc"
 }
 
-t_selection_is_the_same_every_run() {
-  local i delays="" frames="" seen
+collect_runs() {
+  local i delays="" seen
   for i in $(seq 1 "$RUNS"); do
     run_smoke
     seen="$(grep -o 'selected frame [0-9]*, [0-9]* frames' "$TMP/smoke.out" | head -1)"
@@ -48,15 +48,23 @@ t_selection_is_the_same_every_run() {
       cat "$TMP/smoke.out"
       return 1
     }
-    frames="$frames ${seen#selected frame }"
     delays="$delays $(sed 's/.*, \([0-9]*\) frames/\1/' <<<"$seen")"
     cp "$TMP/out/smoke.png" "$TMP/pick-$i.png"
     echo "  run $i: $seen, $(ae "$TMP/pick-$i.png" "$GOLDEN") px from the golden image"
   done
   local spread
   spread="$(printf '%s\n' $delays | sort -n | awk 'NR == 1 { lo = $1 } { hi = $1 } END { print hi - lo }')"
-  echo "  frames after the ready screen first showed:$delays (spread $spread)"
-  [ "$spread" -le 6 ]
+  echo "  frames after the ready screen first showed:$delays (spread $spread, information only)"
+}
+
+t_every_pick_is_byte_identical() {
+  local i
+  for i in $(seq 2 "$RUNS"); do
+    cmp -s "$TMP/pick-1.png" "$TMP/pick-$i.png" || {
+      echo "  run $i differs from run 1"
+      return 1
+    }
+  done
 }
 
 t_every_selection_shows_level_1_start() {
@@ -93,7 +101,8 @@ t_a_wrong_golden_fails() {
   [ "$rc" = 1 ] && [[ "$out" == *"pixels differ"* ]] && [[ "$out" != *retrying* ]]
 }
 
-check "frame selection is the same relative to the key press in $RUNS runs" t_selection_is_the_same_every_run
+check "$RUNS smoke runs each select a frame" collect_runs
+check "every picked frame is byte-identical in $RUNS runs" t_every_pick_is_byte_identical
 check "every selected frame shows level 1 at the start" t_every_selection_shows_level_1_start
 make_wrong_goldens
 for name in howmany ready later; do

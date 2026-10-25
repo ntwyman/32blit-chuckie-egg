@@ -213,6 +213,7 @@ jobs:
         sudo apt update && sudo apt install libsdl2-dev libsdl2-image-dev libsdl2-net-dev python3-setuptools xvfb xdotool imagemagick ffmpeg
 
     - name: Build the SDL target
+      id: sdl-build
       working-directory: main
       run: |
         cmake -B build.sdl -DCMAKE_BUILD_TYPE=$BUILD_TYPE "-DPython_EXECUTABLE=${{steps.python.outputs.python-path}}" -D32BLIT_DIR=$GITHUB_WORKSPACE/32blit-sdk
@@ -223,6 +224,7 @@ jobs:
       run: tools/live/test-drive.sh
 
     - name: Smoke test
+      if: ${{ !cancelled() && steps.sdl-build.outcome == 'success' }}
       working-directory: main
       run: tools/live/drive.sh smoke
 
