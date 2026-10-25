@@ -390,11 +390,7 @@ t_game_log_shows_debugf_while_running() {
   local lane=$((LANE_BASE + 2)) state i seen=no running=no
   state="$(lane_state $lane)"
   printf 'z 100\nwait 400\n' >"$TMP/tap-z.keys"
-  for i in 1 2 3; do
-    LIVE_LANE=$lane LIVE_WINDOW_WAIT=8 "$DRIVE" start >/dev/null 2>&1 && break
-    LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
-    [ "$i" != 3 ] || return 1
-  done
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
   for i in $(seq 1 40); do
     grep -q 'Loaded level' "$state/game.log" 2>/dev/null && seen=yes && break
     LIVE_LANE=$lane "$DRIVE" keys "$TMP/tap-z.keys" >/dev/null 2>&1
@@ -407,6 +403,14 @@ t_game_log_shows_debugf_while_running() {
   fi
   LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
   [ "$seen" = yes ] && [ "$running" = yes ]
+}
+
+t_start_keeps_xvfb_from_resetting() {
+  local lane=$((LANE_BASE + 3)) rc=0
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  pgrep -f "Xvfb :$((99 + lane)) .*-noreset" >/dev/null || rc=1
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  return $rc
 }
 
 t_start_level_rejects_bad_values() {
@@ -434,6 +438,7 @@ t_start_level_refuses_a_running_game() {
 }
 
 check "ce-3: game.log shows debugf lines while the game runs" t_game_log_shows_debugf_while_running
+check "fix: start runs Xvfb with -noreset so the readiness probe cannot reset it" t_start_keeps_xvfb_from_resetting
 check "ce-3: start --level rejects bad values" t_start_level_rejects_bad_values
 check "ce-3: start --level refuses a running game" t_start_level_refuses_a_running_game
 check "ce-3: start --level refuses LIVE_BIN" t_start_level_refuses_live_bin

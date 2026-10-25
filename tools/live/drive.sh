@@ -150,7 +150,7 @@ cmd_start() {
       fi
       rm -f "$lock"
     fi
-    Xvfb "$DISPLAY" -screen 0 "$SCREEN" >"$STATE/xvfb.log" 2>&1 &
+    Xvfb "$DISPLAY" -screen 0 "$SCREEN" -noreset >"$STATE/xvfb.log" 2>&1 &
     record_pid "$STATE/xvfb.pid" $!
     local i
     for i in $(seq 1 $((WINDOW_WAIT * 10))); do
