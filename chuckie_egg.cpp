@@ -8,7 +8,6 @@
 
 using namespace blit;
 
-// Game frame rate was 3/100ths of a second
 #define UPDATE_INTERVAL_MS 60
 
 uint32_t last_frame = 0;
@@ -42,8 +41,6 @@ static uint8_t readButtons() {
   return down;
 }
 
-// last_frame is set once and never advanced, so after the first
-// UPDATE_INTERVAL_MS every update runs a frame.
 void update(uint32_t time) {
   if (last_frame == 0) {
     last_frame = time;

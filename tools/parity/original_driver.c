@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2020-2026 ntwyman
 
-// Runs upstream chuckie.c on a parity input script and writes one FrameTrace
-// line per input frame to stdout. The build applies tools/parity/patches/ to
-// a copy of chuckie.c and this file includes that copy, so the trace can read
-// the file-static Henry state. third_party/ is never edited.
+// The build applies tools/parity/patches/ to a copy of chuckie.c and this
+// file includes that copy, so the trace can read the file-static Henry state.
 
 #include "chuckie.c"
 #include "inputs.h"
@@ -81,8 +79,7 @@ void RenderFrame(void) {
   frame++;
 }
 
-// Upstream calls abort() when the timer runs out (chuckie.c MoveDucks). The
-// trace ends with an abort line for that frame, which the port never writes.
+// Upstream calls abort() when the timer runs out (chuckie.c MoveDucks).
 // abort() is called from the game loop itself, not from another thread, so
 // stdout is not mid-write here.
 static void on_abort(int sig) {

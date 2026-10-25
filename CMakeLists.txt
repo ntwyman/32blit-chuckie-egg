@@ -36,7 +36,6 @@ blit_assets_yaml (${PROJECT_NAME} assets.yml)
 blit_metadata (${PROJECT_NAME} metadata.yml)
 target_compile_definitions(${PROJECT_NAME} PRIVATE CHUCKIE_START_LEVEL=${CHUCKIE_START_LEVEL})
 
-# The trace diff drivers in tools/parity. They run on the build host only.
 option(CHUCKIE_PARITY "Build the host-only trace diff drivers in tools/parity" OFF)
 if(CHUCKIE_PARITY)
   if(CMAKE_CROSSCOMPILING OR EMSCRIPTEN)

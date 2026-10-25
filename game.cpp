@@ -39,7 +39,7 @@ bool Game::isTileWall(int x, int y) {
 }
 
 
-Game::Game(unsigned int startLevel) : startLevel(startLevel - 1) {}
+Game::Game(unsigned int hudLevel) : startLevel(hudLevel - 1) {}
 
 void Game::startGame() {
     this->activePlayers = this->numPlayers;

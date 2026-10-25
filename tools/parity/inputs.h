@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2020-2026 ntwyman
 
-// Reads a parity input script into one button byte per frame. Both drivers
-// use it, so they see the same frames. The format is in tools/parity/README.md.
-
 #ifndef CHUCKIE_PARITY_INPUTS_H
 #define CHUCKIE_PARITY_INPUTS_H
 
@@ -14,6 +11,7 @@
 
 #define INPUTS_MAX_LEVEL 256
 #define INPUTS_MAX_FRAMES 1000000
+#define INPUTS_JUMP 0x10
 
 typedef struct {
   int level;
@@ -26,7 +24,6 @@ static inline void inputs_fail(const char *path, int line, const char *what, con
   exit(2);
 }
 
-// Parses a whole number from 1 to max with no leading zero, or returns 0.
 static inline long inputs_number(const char *text, long max) {
   char *end;
   long n;
@@ -50,7 +47,6 @@ static inline int inputs_key(const char *name) {
   return -1;
 }
 
-// Parses '-' or keys joined with '+', such as 'left+jump'.
 static inline int inputs_buttons(char *keys) {
   int buttons = 0;
   if (strcmp(keys, "-") == 0) {
@@ -137,19 +133,16 @@ static inline Inputs inputs_read(const char *path) {
     fprintf(stderr, "%s: no frames\n", path);
     exit(2);
   }
-  // The port enters the level on an A press, so a jump held on frame 0 is no
-  // new press there, while upstream jumps. That difference would come from
-  // the driver, not the game.
-  if (in.buttons[0] & 0x10) {
-    fprintf(stderr, "%s: frame 0 must not hold jump\n", path);
+  if (in.buttons[0] & INPUTS_JUMP) {
+    fprintf(stderr,
+            "%s: frame 0 must not hold jump: the port enters the level on an A press,"
+            " so a held jump is no new press there, while the original jumps\n",
+            path);
     exit(2);
   }
   return in;
 }
 
-// Parses the arguments '[--level <n>] <script>' that both drivers take.
-// --level overrides the script's level line. Returns the index of the first
-// argument after them.
 static inline Inputs inputs_from_args(int argc, char **argv, const char *usage, int *next) {
   int i = 1;
   long level = 0;

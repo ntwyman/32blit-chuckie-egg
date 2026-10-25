@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2020-2026 ntwyman
 
-// Writes a FrameTrace as one line of name=value fields. Both drivers use it,
-// so the two traces compare line for line.
-
 #ifndef CHUCKIE_PARITY_TRACE_WRITE_H
 #define CHUCKIE_PARITY_TRACE_WRITE_H
 
@@ -11,8 +8,6 @@
 
 #include <stdio.h>
 
-// A level without a lift has no lift fields, and only the level's hens are
-// written, because the rest hold stale values in both games.
 static inline void trace_write(FILE *out, int frame, const FrameTrace *t) {
   fprintf(out,
           "frame=%d henry_x=%d henry_y=%d henry_tile_x=%d henry_tile_y=%d"

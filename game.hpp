@@ -91,8 +91,7 @@ struct BigDuck {
 
 class Game {
 public:
-  // startLevel is the level number the HUD shows, from 1.
-  explicit Game(unsigned int startLevel);
+  explicit Game(unsigned int hudLevel);
   void SetScreenSize(blit::Size &);
   void Render(blit::Surface &);
   void Step(uint8_t buttons);

@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2020-2026 ntwyman
 
-// Runs the port's Game on a parity input script with no screen and writes one
-// FrameTrace line per input frame to stdout. With --bench it writes no trace
-// and prints the mean time of one Game::Step to stderr instead.
-
 #include "game.hpp"
 #include "engine/api_private.hpp"
 #include "inputs.h"
@@ -33,8 +29,6 @@ APIData &api_data = host_api_data;
 
 static const char usage[] = "port_driver [--level <n>] <script.inputs> [--bench]";
 
-// Passes the how-many-players and ready screens. A stays held, so a jump on
-// frame 0 would not be a new press; inputs.h rejects such scripts.
 static void enterLevel(Game &game) {
   blit::Size screen(320, 240);
   game.SetScreenSize(screen);
@@ -54,23 +48,21 @@ static double meanStepMicros(const Inputs &in, size_t frames) {
   return took.count() / (double)frames;
 }
 
-// After Henry dies the port stays on its game-over screen, where Step does
-// almost nothing, so the bench also times the frames up to the first death.
 static void bench(const Inputs &in) {
   Game game(in.level);
   enterLevel(game);
-  size_t alive = in.count;
+  size_t framesToFirstDeath = in.count;
   for (size_t frame = 0; frame < in.count; frame++) {
     game.Step(in.buttons[frame]);
     if (game.Snapshot().dead) {
-      alive = frame + 1;
+      framesToFirstDeath = frame + 1;
       break;
     }
   }
   fprintf(stderr, "port_driver: %zu steps, mean %.3f us per Game::Step\n", in.count,
           meanStepMicros(in, in.count));
   fprintf(stderr, "port_driver: %zu steps up to the first death, mean %.3f us per Game::Step\n",
-          alive, meanStepMicros(in, alive));
+          framesToFirstDeath, meanStepMicros(in, framesToFirstDeath));
 }
 
 int main(int argc, char **argv) {

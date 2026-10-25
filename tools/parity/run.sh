@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2020-2026 ntwyman
 set -euo pipefail
+export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PARITY="$ROOT/tools/parity"
@@ -15,11 +16,10 @@ usage() {
 }
 
 build() {
-  local log="$BUILD/parity-build.log"
+  local log="$BUILD/parity-build.log" args
+  read -ra args <<<"${PARITY_CMAKE_ARGS:-}"
   mkdir -p "$BUILD"
-  # PARITY_CMAKE_ARGS is split on spaces on purpose, to pass several -D flags.
-  # shellcheck disable=SC2086
-  if ! { cmake -B "$BUILD" -S "$ROOT" -DCHUCKIE_PARITY=ON -DCMAKE_BUILD_TYPE=Release ${PARITY_CMAKE_ARGS:-} &&
+  if ! { cmake -B "$BUILD" -S "$ROOT" -DCHUCKIE_PARITY=ON -DCMAKE_BUILD_TYPE=Release "${args[@]}" &&
     cmake --build "$BUILD" --target parity -j; } >"$log" 2>&1; then
     cat "$log" >&2
     echo "run.sh: the parity build failed, see $log" >&2
@@ -27,7 +27,6 @@ build() {
   fi
 }
 
-# Prints the names in a list file, without comments or blank lines.
 names() {
   sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e '/^$/d' "$1"
 }
@@ -36,15 +35,10 @@ listed() {
   names "$EXPECTED" | grep -qxF -- "$1"
 }
 
-# Where a listed script's report is pinned.
 pinned() {
   echo "$PARITY/$1-divergences.txt"
 }
 
-# Compares two traces field by field. The first line it prints is PASS or
-# 'DIVERGES at frame <n> field <name>'. Each later line names one field, the
-# first frame it differs on, and both values, '-' meaning the field is absent.
-# Fields that first differ on the same frame keep the original's field order.
 compare() {
   [ -s "$1" ] && [ -s "$2" ] || {
     echo "run.sh: a trace is empty: $1 $2" >&2
@@ -95,7 +89,6 @@ compare() {
     }'
 }
 
-# Runs both drivers on one script and prints its full report.
 report() {
   local name="$1" script="$PARITY/scripts/$1.inputs" side
   [ -f "$script" ] || { echo "run.sh: no script $script" >&2; exit 2; }
@@ -112,8 +105,6 @@ report() {
   echo "$name $result"
 }
 
-# Returns 1, with a reason on stderr, when a script's report does not match
-# expected-divergent.txt and its pinned report.
 check() {
   local name="$1" out="$2" file
   file="$(pinned "$name")"
@@ -138,7 +129,6 @@ check() {
   fi
 }
 
-# A pinned report with no listing, or a listing with no script, also fails.
 check_files() {
   local status=0 file name
   for file in "$PARITY"/*-divergences.txt; do
@@ -171,7 +161,6 @@ record() {
   echo "run.sh: wrote $(pinned "$name")"
 }
 
-# Checks compare on fixed traces, so a broken comparator cannot report PASS.
 self_test() {
   local d status=0 got
   d="$(mktemp -d)"

@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2020-2026 ntwyman
 
-// One frame of game state, in upstream chuckie.c's units: x from the left
-// edge of the play field and y up from its bottom row, both in pixels.
-// trace_write.h writes it for both parity drivers.
-
 #ifndef CHUCKIE_PARITY_TRACE_H
 #define CHUCKIE_PARITY_TRACE_H
 
