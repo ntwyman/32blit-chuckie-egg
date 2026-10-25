@@ -4,7 +4,9 @@
 
 #pragma once
 #include "32blit.hpp"
+#ifdef CHUCKIE_PARITY
 #include "tools/parity/trace.h"
+#endif
 #include <cstdint>
 
 enum GameState {HOW_MANY, READY_PLAYER, LEVEL, GAME_OVER};
@@ -95,7 +97,9 @@ public:
   void SetScreenSize(blit::Size &);
   void Render(blit::Surface &);
   void Step(uint8_t buttons);
+#ifdef CHUCKIE_PARITY
   FrameTrace Snapshot();
+#endif
 
 private:
   unsigned int getTile(int x, int y);
@@ -138,7 +142,9 @@ private:
 
   blit::Point tilePosition(blit::Point &);
   blit::Point tilePosition(int, int);
+#ifdef CHUCKIE_PARITY
   blit::Point upstreamPosition(const blit::Point &);
+#endif
 
   GameState state = GameState::HOW_MANY;
 

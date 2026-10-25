@@ -20,13 +20,6 @@ Point Game::tilePosition(Point &tile) {
     return this->tilePosition(tile.x, tile.y);
 }
 
-// The inverse of tilePosition for any screen point, in upstream's units.
-// Upstream measures y up from the bottom and anchors tile (x, y) at pixel
-// (x * 8, y * 8 + 7) (raster_4bit.c), so the bottom row is y 0.
-Point Game::upstreamPosition(const Point &p) {
-    return Point(p.x - X_OFFSET, this->screenSize.h - 1 - p.y);
-}
-
 unsigned int Game::getTile(int x, int y) {
     if (x < 0 || x >= COLUMNS || y < 0 || y >= ROWS) {
         return 0;
@@ -1007,6 +1000,14 @@ void Game::Step(uint8_t buttons) {
     }
 }
 
+#ifdef CHUCKIE_PARITY
+// The inverse of tilePosition for any screen point, in upstream's units.
+// Upstream measures y up from the bottom and anchors tile (x, y) at pixel
+// (x * 8, y * 8 + 7) (raster_4bit.c), so the bottom row is y 0.
+Point Game::upstreamPosition(const Point &p) {
+    return Point(p.x - X_OFFSET, this->screenSize.h - 1 - p.y);
+}
+
 static_assert(TRACE_MAX_HENS >= MAX_DUCKS, "FrameTrace must hold every hen");
 
 FrameTrace Game::Snapshot() {
@@ -1044,6 +1045,7 @@ FrameTrace Game::Snapshot() {
     }
     return t;
 }
+#endif
 
 void Game::Render(Surface &s) {
     /*

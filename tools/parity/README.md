@@ -54,6 +54,8 @@ The build copies `chuckie.c` and applies `patches/*.patch` to the copy in name o
 
 `trace.h` defines `FrameTrace`, and `trace_write.h` writes it as `name=value` fields. Positions are in the original's units: x in pixels from the left of the play field, and y in pixels up from its bottom row. `Game::upstreamPosition` converts a port screen position with the exact inverse of `Game::tilePosition`: it removes `X_OFFSET` and maps screen row `Y` to `239 - Y`. The original anchors tile `(x, y)` at pixel `(x * 8, y * 8 + 7)` (`raster_4bit.c`), and that is where the inverse sends the tile's top-left corner. Never change the conversion to make a trace match. A position that differs after it is a real difference.
 
+`Game::Snapshot`, `Game::upstreamPosition`, and the `trace.h` include compile only when `CHUCKIE_PARITY` is defined. Only the `parity-port` target defines it, so device and web builds hold no trace code.
+
 The fields are Henry's x, y, tile, partial position, and mode, whether he died this frame, then the score, lives, bonus, and timer, then the lift positions on a level with a lift, the duck timer, the hen countdown that picks which hen moves next (`current_duck`), the hen count, and each hen's position and mode. Hens past the level's count are left out, because both games keep stale values there.
 
 ## Building without the 32Blit engine

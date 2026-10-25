@@ -53,6 +53,7 @@ if(CHUCKIE_PARITY)
 
   add_executable(parity-port ${PARITY}/port_driver.cpp game.cpp levels.cpp sprites.cpp)
   target_include_directories(parity-port PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PARITY})
+  target_compile_definitions(parity-port PRIVATE CHUCKIE_PARITY)
   target_link_libraries(parity-port BlitEngine)
 
   add_custom_command(
