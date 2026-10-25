@@ -239,11 +239,10 @@ void Game::renderBackground(Surface &s) {
             const Point &pos = this->tilePosition(x, y);
 
             uint8_t tile = getTile(x, y);
-            if (tile & TILE_WALL) {
-                s.sprite(SpriteWall, pos);
-            }
             if (tile & TILE_LADDER) {
                 s.sprite(SpriteLadder, pos);
+            } else if (tile & TILE_WALL) {
+                s.sprite(SpriteWall, pos);
             }
             if (tile & TILE_EGG) {
                 s.sprite(SpriteEgg, pos);
