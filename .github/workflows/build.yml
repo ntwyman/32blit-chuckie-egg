@@ -31,6 +31,7 @@ on:
 
 env:
   BUILD_TYPE: Release
+  SDK_REF: db99cb7fad2ee163bf7251193566bfcf6781da7c
   EM_VERSION: 2.0.18 # Emscripten version
   EM_CACHE_FOLDER: 'emsdk-cache' # Cache for Emscripten libs
 
@@ -93,6 +94,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: 32blit/32blit-sdk
+        ref: ${{env.SDK_REF}}
         path: 32blit-sdk
 
     # Pin one Python for the 32blit tools; CMake is pointed at this same
@@ -178,3 +180,58 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: ${{runner.workspace}}/main/build/${{env.RELEASE_FILE}}.zip
+
+  live-smoke:
+
+    name: Live smoke
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        path: main
+
+    - name: Checkout 32Blit API
+      uses: actions/checkout@v4
+      with:
+        repository: 32blit/32blit-sdk
+        ref: ${{env.SDK_REF}}
+        path: 32blit-sdk
+
+    - name: Setup Python
+      id: python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install 32blit tools
+      run: python -m pip install 32blit "bitstring<5"
+
+    - name: Install deps
+      run: |
+        sudo apt update && sudo apt install libsdl2-dev libsdl2-image-dev libsdl2-net-dev python3-setuptools xvfb xdotool imagemagick ffmpeg
+
+    - name: Build the SDL target
+      id: sdl-build
+      working-directory: main
+      run: |
+        cmake -B build.sdl -DCMAKE_BUILD_TYPE=$BUILD_TYPE "-DPython_EXECUTABLE=${{steps.python.outputs.python-path}}" -D32BLIT_DIR=$GITHUB_WORKSPACE/32blit-sdk
+        cmake --build build.sdl -j 2
+
+    - name: Driver tests
+      working-directory: main
+      run: tools/live/test-drive.sh
+
+    - name: Smoke test
+      if: ${{ !cancelled() && steps.sdl-build.outcome == 'success' }}
+      working-directory: main
+      run: tools/live/drive.sh smoke
+
+    - name: Upload the smoke frame and game log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: smoke-png
+        path: main/tools/live/out
+        if-no-files-found: ignore

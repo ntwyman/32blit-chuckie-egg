@@ -18,7 +18,7 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
 ARG SDK_REPO=https://github.com/32blit/32blit-sdk
-ARG SDK_REF=master
+ARG SDK_REF=db99cb7fad2ee163bf7251193566bfcf6781da7c
 ARG TOOLS_REPO=https://github.com/32blit/32blit-tools
 ARG TOOLS_REF=main
 ARG PICO_SDK_REPO=https://github.com/raspberrypi/pico-sdk
@@ -78,8 +78,10 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
 RUN pip install --no-cache-dir playwright \
     && playwright install --with-deps chromium
 
-# 32blit SDK
-RUN git clone --depth 1 --branch ${SDK_REF} ${SDK_REPO} /opt/32blit-sdk
+# 32blit SDK. Fetched by ref rather than cloned so SDK_REF can be a commit
+RUN git init -q /opt/32blit-sdk \
+    && git -C /opt/32blit-sdk fetch -q --depth 1 ${SDK_REPO} ${SDK_REF} \
+    && git -C /opt/32blit-sdk checkout -q FETCH_HEAD
 ENV PATH_32BLIT_SDK=/opt/32blit-sdk
 
 # Pico SDK for PicoSystem builds (see 32blit-sdk/docs/pico.md). It lives next
