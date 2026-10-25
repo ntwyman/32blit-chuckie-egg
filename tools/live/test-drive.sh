@@ -400,6 +400,11 @@ t_game_log_shows_debugf_while_running() {
     LIVE_LANE=$lane "$DRIVE" keys "$TMP/tap-z.keys" >/dev/null 2>&1
   done
   LIVE_LANE=$lane bash -c 'source "$1"; game_running' _ "$DRIVE" && running=yes
+  if [ "$seen" != yes ] || [ "$running" != yes ]; then
+    echo "  seen=$seen running=$running" >&2
+    grep -av '^Step ' "$state/game.log" | head -20 >&2
+    grep -ac '^Step ' "$state/game.log" >&2
+  fi
   LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
   [ "$seen" = yes ] && [ "$running" = yes ]
 }
