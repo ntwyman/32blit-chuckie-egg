@@ -539,7 +539,7 @@ void Game::fallHenry(Henry &h) {
 }
 
 bool Game::startJump(Henry &h) {
-    if ((this->newDown & BUTTON_A) == 0) {
+    if ((this->buttonsDown & BUTTON_A) == 0) {
         return false;
     }
     h.falling = 0;

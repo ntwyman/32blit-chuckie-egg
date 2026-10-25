@@ -1,0 +1,6 @@
+# Jump at the first ladder with jump held throughout: the original jumps again each time Henry grabs it or lands.
+24 -
+10 right
+1 right+jump
+40 right+up+jump
+40 up+jump
