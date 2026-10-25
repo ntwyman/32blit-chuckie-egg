@@ -7,7 +7,8 @@
 ```
 tools/parity/run.sh --all
 tools/parity/run.sh --script idle
-tools/parity/run.sh --record idle
+tools/parity/run.sh --record long-play
+tools/parity/run.sh --clock
 tools/parity/run.sh --self-test
 ```
 
@@ -21,6 +22,8 @@ tools/parity/run.sh --self-test
 The last line of a diverging report, `every difference: <n> field values over <m> frames, sha256 <digest>`, covers every frame and field that differs, not only the first difference per field. The digest hashes the list of `<frame> <field> <port> <original>` for each differing value. Without it, a field that already differs would pass CI however it changed afterwards, so a listed script could regress unnoticed. A change to any later value of any field changes the digest and fails the run.
 
 `--record <name>` rewrites `<name>-divergences.txt` from the current report. Run it only for a change the PR means to make, and say so in the PR, because the pinned reports are what holds later PRs to the original. When a fix makes a script pass, delete its report and its line in `expected-divergent.txt`.
+
+`--clock` runs `clock_test`, which feeds `FrameClock::due` fixed timestamps and checks how many `Game::Step` calls it returns. The trace diff cannot see the clock, because it calls `Step` once per input frame. `--all` runs it after the scripts.
 
 `--self-test` checks the comparator on fixed traces. CI runs it before `--all`.
 

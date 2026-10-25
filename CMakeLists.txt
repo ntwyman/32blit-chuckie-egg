@@ -7,6 +7,7 @@ project(chuckie-egg)
 
 set(PROJECT_SOURCE
   chuckie_egg.cpp
+  frame_clock.hpp
   game.cpp game.hpp
   levels.cpp levels.hpp
   sprites.cpp sprites.hpp
@@ -72,7 +73,10 @@ if(CHUCKIE_PARITY)
     target_compile_options(parity-original PRIVATE -Wno-stringop-overflow)
   endif()
 
-  add_custom_target(parity DEPENDS parity-port parity-original)
+  add_executable(parity-clock ${PARITY}/clock_test.cpp)
+  target_include_directories(parity-clock PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+  add_custom_target(parity DEPENDS parity-port parity-original parity-clock)
 endif()
 
 # The SDK's web shell uses FS and IDBFS from its preRun, but newer Emscripten
