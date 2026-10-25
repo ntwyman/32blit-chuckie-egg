@@ -175,47 +175,63 @@ void Game::loadLevel() {
     this->score = 0;
 }
 
+namespace {
+// x positions are in play-field pixels, from DrawHUD, DrawLives and DrawTimer
+// in raster_4bit.c. The y rows are the port's own, two rows of text.
+constexpr int HUD_DIGIT_STRIDE = 5;
+constexpr int HUD_LABEL_Y_TOP = 0;
+constexpr int HUD_DIGIT_Y_TOP = 1;
+constexpr int HUD_LABEL_Y = 12;
+constexpr int HUD_DIGIT_Y = 13;
+constexpr int HUD_SCORE_X = 0x00;
+constexpr int HUD_SCORE_BLANK_X = 0x1b;
+constexpr int HUD_SCORE_LAST_X = 0x1b + 1 + 5 * HUD_DIGIT_STRIDE;
+constexpr int HUD_SCORE_DIGITS = 6;
+constexpr int HUD_PLAYER_X = 0x00;
+constexpr int HUD_PLAYER_DIGIT_X = 0x1b;
+constexpr int HUD_LEVEL_X = 0x24;
+constexpr int HUD_LEVEL_HUNDREDS_X = 0x3b;
+constexpr int HUD_LEVEL_LAST_X = 0x45;
+constexpr int HUD_BONUS_X = 0x4e;
+constexpr int HUD_BONUS_LAST_X = 0x75;
+constexpr int HUD_BONUS_DIGITS = 4;
+constexpr int HUD_TIME_X = 0x7e;
+constexpr int HUD_TIMER_LAST_X = 0x9b;
+constexpr int HUD_TIMER_DIGITS = 3;
+}
+
 static void renderDigit(Surface &s, unsigned int digit, unsigned int x, unsigned int y) {
     s.sprite(SpriteDigits[digit], Point(x + X_OFFSET, y));
 }
 
-static void renderNumber(Surface &s, unsigned int number, unsigned int x, unsigned int y) {
-    renderDigit(s, number % 10,x, y);
-    number /= 10;
-    renderDigit(s, number%10,x-5, y);
-    x -= 10;
-    for(;;) {
+static void renderNumber(Surface &s, unsigned int number, unsigned int digits, unsigned int lastX, unsigned int y) {
+    for (unsigned int i = 0; i < digits; i++) {
+        renderDigit(s, number % 10, lastX - i * HUD_DIGIT_STRIDE, y);
         number /= 10;
-        if (number == 0)
-            break;
-        renderDigit(s, number % 10, x, y);
-        x -= 5;
     }
 }
 
 void Game::renderBackground(Surface &s) {
-    // WARNING MAGIC NUMBERS ABOUND
-    // Score
-    s.sprite(SpriteScore, Point(X_OFFSET, 0));
-    s.sprite(SpriteBlank, Point(X_OFFSET + 27 , 0));
-    renderNumber(s, this->score, 53,1);
+    s.sprite(SpriteScore, Point(X_OFFSET + HUD_SCORE_X, HUD_LABEL_Y_TOP));
+    s.sprite(SpriteBlank, Point(X_OFFSET + HUD_SCORE_BLANK_X, HUD_LABEL_Y_TOP));
+    renderNumber(s, this->score, HUD_SCORE_DIGITS, HUD_SCORE_LAST_X, HUD_DIGIT_Y_TOP);
 
-    // Player
-    s.sprite(SpritePlayer, Point(X_OFFSET, 12));
-    renderDigit(s, this->currentPlayer + 1,27, 13);
+    s.sprite(SpritePlayer, Point(X_OFFSET + HUD_PLAYER_X, HUD_LABEL_Y));
+    renderDigit(s, this->currentPlayer + 1, HUD_PLAYER_DIGIT_X, HUD_DIGIT_Y);
 
-    // Level
-    s.sprite(SpriteLevel, Point(X_OFFSET + 36, 12));
-    renderNumber(s, this->currentLevel + 1, 69, 13);
+    unsigned int hudLevel = this->currentLevel + 1;
+    s.sprite(SpriteLevel, Point(X_OFFSET + HUD_LEVEL_X, HUD_LABEL_Y));
+    renderNumber(s, hudLevel, 2, HUD_LEVEL_LAST_X, HUD_DIGIT_Y);
+    // Upstream tests the level divided by ten against ten, so levels 100 to 109 show no hundreds digit.
+    if (hudLevel / 10 > 10) {
+        renderDigit(s, hudLevel / 100, HUD_LEVEL_HUNDREDS_X, HUD_DIGIT_Y);
+    }
 
-    // Bonus
-    s.sprite(SpriteBonus, Point(X_OFFSET + 78, 12));
-    renderNumber(s, this->bonus, 117, 13);
-    //s.sprite(SpriteDigits[0], Point(117, 13));
+    s.sprite(SpriteBonus, Point(X_OFFSET + HUD_BONUS_X, HUD_LABEL_Y));
+    renderNumber(s, this->bonus, HUD_BONUS_DIGITS, HUD_BONUS_LAST_X, HUD_DIGIT_Y);
 
-    // Time
-    s.sprite(SpriteTime, Point(X_OFFSET + 126, 12));
-    renderNumber(s, this->timer, 153, 13);
+    s.sprite(SpriteTime, Point(X_OFFSET + HUD_TIME_X, HUD_LABEL_Y));
+    renderNumber(s, this->timer, HUD_TIMER_DIGITS, HUD_TIMER_LAST_X, HUD_DIGIT_Y);
 
     // Level deets
     for (int x = 0; x < COLUMNS; x++) {
