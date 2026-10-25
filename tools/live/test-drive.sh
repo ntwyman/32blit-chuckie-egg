@@ -386,6 +386,20 @@ t_explicit_path_uses_the_named_file() {
   [[ "$out" == *"unknown key"* ]]
 }
 
+t_game_log_shows_debugf_while_running() {
+  local lane=$((LANE_BASE + 2)) state i seen=1 running=1
+  state="$(lane_state $lane)"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  LIVE_LANE=$lane "$DRIVE" keys start-one-player >/dev/null 2>&1
+  for i in $(seq 1 30); do
+    grep -q 'Loaded level' "$state/game.log" 2>/dev/null && seen=0 && break
+    sleep 0.1
+  done
+  LIVE_LANE=$lane bash -c 'source "$1"; game_running' _ "$DRIVE" && running=0
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$seen" = 0 ] && [ "$running" = 0 ]
+}
+
 t_start_level_rejects_bad_values() {
   local lane=$((LANE_BASE + 1)) bad out
   for bad in 0 257 08 x "1 2" ""; do
@@ -410,6 +424,7 @@ t_start_level_refuses_a_running_game() {
   [ "$rc" = 1 ] && [[ "$out" == *"run drive.sh stop first"* ]]
 }
 
+check "ce-3: game.log shows debugf lines while the game runs" t_game_log_shows_debugf_while_running
 check "ce-3: start --level rejects bad values" t_start_level_rejects_bad_values
 check "ce-3: start --level refuses a running game" t_start_level_refuses_a_running_game
 check "ce-3: start --level refuses LIVE_BIN" t_start_level_refuses_live_bin

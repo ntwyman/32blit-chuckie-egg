@@ -19,7 +19,7 @@
 | `drive.sh stop` | Stops the game and `Xvfb`. It exits zero when nothing runs. |
 | `drive.sh smoke` | Starts a fresh game, starts one player, and compares the first frame of level 1 with `golden/level1-start.png`. It prints `smoke: ok` and writes `out/lane<n>/smoke.png`. |
 
-The game's `debugf` output goes to `$LIVE_STATE/game.log`, where `LIVE_STATE` defaults to `/tmp/chuckie-live-<display>`.
+The game's `debugf` output goes to `$LIVE_STATE/game.log`, where `LIVE_STATE` defaults to `/tmp/chuckie-live-<display>`. `start` runs the game under `stdbuf -oL`, so each line reaches `game.log` as the game writes it, not when the game exits.
 
 ## Display size
 

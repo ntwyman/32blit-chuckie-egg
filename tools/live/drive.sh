@@ -131,7 +131,7 @@ cmd_start() {
     }
     [ -z "${LIVE_BIN:-}" ] || die "start --level builds its own binary, so unset LIVE_BIN"
   fi
-  need Xvfb xdotool
+  need Xvfb xdotool stdbuf
   if game_running; then
     [ $# -eq 0 ] || die "a game already runs on display $DISPLAY and may be on another level; run drive.sh stop first"
     echo "start: game already running (pid $(pid_of "$STATE/game.pid"), display $DISPLAY)"
@@ -164,7 +164,7 @@ cmd_start() {
       die "Xvfb did not answer on $DISPLAY within ${WINDOW_WAIT}s, see $STATE/xvfb.log"
     fi
   fi
-  "$BIN" >"$STATE/game.log" 2>&1 &
+  stdbuf -oL "$BIN" >"$STATE/game.log" 2>&1 &
   record_pid "$STATE/game.pid" $!
   local i found=0
   for i in $(seq 1 $((WINDOW_WAIT * 10))); do
