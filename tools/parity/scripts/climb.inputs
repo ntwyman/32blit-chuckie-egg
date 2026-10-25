@@ -1,0 +1,6 @@
+# Walk to the ladder at tile 11, climb to the first floor, and keep climbing against the top.
+24 -
+20 right
+1 -
+14 right+up
+102 up

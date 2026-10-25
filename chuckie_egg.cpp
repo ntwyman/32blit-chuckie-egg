@@ -3,14 +3,14 @@
 // 32Blit port Copyright (C) 2020-2026 ntwyman
 
 #include "32blit.hpp"
+#include "frame_clock.hpp"
 #include "game.hpp"
 #include "assets.hpp"
 
 using namespace blit;
 
-#define UPDATE_INTERVAL_MS 60
-
-uint32_t last_frame = 0;
+FrameClock frame_clock;
+uint32_t step_count = 0;
 Game game(CHUCKIE_START_LEVEL);
 
 void init() {
@@ -42,13 +42,15 @@ static uint8_t readButtons() {
 }
 
 void update(uint32_t time) {
-  if (last_frame == 0) {
-    last_frame = time;
+  // After a stall the engine replays updates with stamped times, so only now() shows the backlog.
+  uint32_t steps = frame_clock.due(now());
+  for (uint32_t i = 0; i < steps; i++) {
+    game.Step(readButtons());
   }
-  if ((time - last_frame) < UPDATE_INTERVAL_MS) {
-    return;
+  if (steps > 0) {
+    step_count += steps;
+    debugf("Step %u: ran %u at %u ms\r\n", step_count, steps, now());
   }
-  game.Step(readButtons());
 }
 
 void render(uint32_t time) {

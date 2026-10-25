@@ -1,5 +1,2 @@
-idle
 idle-level3
-jump-left
 long-play
-walk-right

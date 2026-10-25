@@ -33,14 +33,8 @@ enum GameState {HOW_MANY, READY_PLAYER, LEVEL, GAME_OVER};
 #define BUTTON_A 0x10u
 #define BUTTONS_ALL (BUTTON_RIGHT | BUTTON_LEFT | BUTTON_DOWN | BUTTON_UP | BUTTON_A)
 
-/* extern uint8_t buttons;
-extern uint8_t button_ack;
-extern int cheat;
-extern int skip_frame;
-*/
-
 // Offset into tile to get on ladder
-#define LADDER_PARTIAL_X 0
+#define LADDER_PARTIAL_X 3
 
 /* Direction bitflags  */
 #define DIR_L 1
@@ -142,6 +136,7 @@ private:
 
   blit::Point tilePosition(blit::Point &);
   blit::Point tilePosition(int, int);
+  blit::Point screenPosition(int, int);
 #ifdef CHUCKIE_PARITY
   blit::Point upstreamPosition(const blit::Point &);
 #endif

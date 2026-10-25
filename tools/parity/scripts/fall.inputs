@@ -1,0 +1,9 @@
+# Climb to the first floor, then walk left off its end and fall to the ground floor.
+25 -
+20 right
+1 -
+14 right+up
+1 -
+34 up
+134 left
+1 -

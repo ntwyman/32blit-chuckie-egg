@@ -7,7 +7,8 @@
 ```
 tools/parity/run.sh --all
 tools/parity/run.sh --script idle
-tools/parity/run.sh --record idle
+tools/parity/run.sh --record long-play
+tools/parity/run.sh --clock
 tools/parity/run.sh --self-test
 ```
 
@@ -21,6 +22,8 @@ tools/parity/run.sh --self-test
 The last line of a diverging report, `every difference: <n> field values over <m> frames, sha256 <digest>`, covers every frame and field that differs, not only the first difference per field. The digest hashes the list of `<frame> <field> <port> <original>` for each differing value. Without it, a field that already differs would pass CI however it changed afterwards, so a listed script could regress unnoticed. A change to any later value of any field changes the digest and fails the run.
 
 `--record <name>` rewrites `<name>-divergences.txt` from the current report. Run it only for a change the PR means to make, and say so in the PR, because the pinned reports are what holds later PRs to the original. When a fix makes a script pass, delete its report and its line in `expected-divergent.txt`.
+
+`--clock` runs `clock_test`, which feeds `FrameClock::due` fixed timestamps and checks how many `Game::Step` calls it returns. The trace diff cannot see the clock, because it calls `Step` once per input frame. `--all` runs it after the scripts.
 
 `--self-test` checks the comparator on fixed traces. CI runs it before `--all`.
 
@@ -45,7 +48,7 @@ level 1
 
 Both drivers take `[--level <n>] <script.inputs>`, write one trace line per input frame to stdout, and send logs to stderr. `--level` overrides the script's level line.
 
-- `build.parity/parity-port` runs `Game` with no screen. Before the first frame it presses A, releases, and presses A again, to pass the how-many-players and ready screens. It then calls `Game::Step` once per input frame and writes `Game::Snapshot` after it. With `--bench` after the script it writes no trace and prints the mean time of one `Game::Step`, over the whole script and over the frames up to Henry's first death.
+- `build.parity/parity-port` runs `Game` with no screen. Before the first frame it presses A, releases, and presses A again, to pass the how-many-players and ready screens. It then calls `Game::Step` once per input frame and writes `Game::Snapshot` after it. With `--bench <frames>` after the script it writes no trace. It times that many `Game::Step` calls with the debug hook silenced, repeats the batch 200 times, and prints the median wall time. It refuses a count that runs past Henry's first death, because a game-over frame does almost nothing and would hide the cost of a live one. It also prints the mean time of one `Step` over the whole script, for information. To compare two builds, give both the same count, no larger than the earlier first death. The batch median is the perf metric, because the mean per `Step` sits near the timer's resolution and most of a script's frames come after Henry's first death.
 - `build.parity/parity-original` builds `third_party/pbrook-chuckie-egg/chuckie.c` and `leveldata.c` with a raster that draws nothing and no sound. It sets the original's `buttons` from the script each frame and ignores `button_ack`, as upstream's SDL input does. It records the trace in `RenderFrame` and stops when the script runs out. If upstream calls `abort()`, the trace ends with a `frame=<n> abort=1` line.
 
 The two sides record at slightly different points. The original records before its death and level-complete checks. The port records after `Step`, which has already moved to its game-over screen on a death and has already counted the bonus into the score when the last egg goes. So `dead` is 1 on the frame Henry dies on both sides, but on the frame a level ends the port's score and bonus show the count one frame early.
