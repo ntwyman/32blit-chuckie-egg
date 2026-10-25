@@ -389,11 +389,15 @@ t_explicit_path_uses_the_named_file() {
 t_game_log_shows_debugf_while_running() {
   local lane=$((LANE_BASE + 2)) state i seen=no running=no
   state="$(lane_state $lane)"
-  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
-  LIVE_LANE=$lane "$DRIVE" keys start-one-player >/dev/null 2>&1
-  for i in $(seq 1 30); do
+  printf 'z 100\nwait 400\n' >"$TMP/tap-z.keys"
+  for i in 1 2 3; do
+    LIVE_LANE=$lane LIVE_WINDOW_WAIT=8 "$DRIVE" start >/dev/null 2>&1 && break
+    LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+    [ "$i" != 3 ] || return 1
+  done
+  for i in $(seq 1 40); do
     grep -q 'Loaded level' "$state/game.log" 2>/dev/null && seen=yes && break
-    sleep 0.1
+    LIVE_LANE=$lane "$DRIVE" keys "$TMP/tap-z.keys" >/dev/null 2>&1
   done
   LIVE_LANE=$lane bash -c 'source "$1"; game_running' _ "$DRIVE" && running=yes
   LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1

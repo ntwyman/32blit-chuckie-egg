@@ -21,6 +21,8 @@
 
 The game's `debugf` output goes to `$LIVE_STATE/game.log`, where `LIVE_STATE` defaults to `/tmp/chuckie-live-<display>`. `start` runs the game under `stdbuf -oL`, so each line reaches `game.log` as the game writes it, not when the game exits.
 
+The game sometimes never opens its window under heavy CPU contention (about 5 starts in 100 with two lanes pinned to one CPU): `start` then fails with "no game window", and waiting longer does not help. The debugf check in `test-drive.sh` retries `start`.
+
 ## Display size
 
 The SDL window is 640x480. `Xvfb` must be at least that size, or the root window shows black. `drive.sh` starts `Xvfb` at 640x480x24. Do not shrink it to the 320x240 of the game's own screen.
