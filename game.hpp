@@ -144,43 +144,43 @@ private:
   GameState state = GameState::HOW_MANY;
 
   // Screen
-  blit::Size screenSize;
+  blit::Size screenSize{};
 
 
   // input
-  uint8_t buttonsDown;
-  uint8_t newDown;
+  uint8_t buttonsDown{};
+  uint8_t newDown{};
 
   // Level info
-  bool hasLift;
-  uint16_t numGrain;
-  uint16_t numDucks;
-  uint16_t liftX;
-  uint16_t liftY[2];
-  uint16_t currentLift;
-  bool hasBigDuck;
+  bool hasLift{};
+  uint16_t numGrain{};
+  uint16_t numDucks{};
+  uint16_t liftX{};
+  uint16_t liftY[2]{};
+  uint16_t currentLift{};
+  bool hasBigDuck{};
 
   // state
-  bool isDead;
-  uint8_t startLevel;
-  uint8_t currentLevel;
+  bool isDead{};
+  uint8_t startLevel{};
+  uint8_t currentLevel{};
   uint8_t numPlayers = 1;
-  uint8_t activePlayers;
-  uint8_t currentPlayer;
-  uint8_t eggsLeft;
-  uint8_t duckTimer;
-  uint8_t duckRate;
-  uint8_t pauseDuckBonus;
-  uint8_t randLow;
-  uint8_t currentDuck;
-  uint8_t tiles[ROWS * COLUMNS];
-  uint16_t timer;
-  uint16_t bonus;
-  uint32_t score;
-  uint32_t randHigh;
+  uint8_t activePlayers{};
+  uint8_t currentPlayer{};
+  uint8_t eggsLeft{};
+  uint8_t duckTimer{};
+  uint8_t duckRate{};
+  uint8_t pauseDuckBonus{};
+  uint8_t randLow{};
+  uint8_t currentDuck{};
+  uint8_t tiles[ROWS * COLUMNS]{};
+  uint16_t timer{};
+  uint16_t bonus{};
+  uint32_t score{};
+  uint32_t randHigh{};
 
-  Player playerData[MAX_PLAYERS];
-  BigDuck bigDuck;
-  Duck ducks[MAX_DUCKS];
-  Henry henry;
+  Player playerData[MAX_PLAYERS]{};
+  BigDuck bigDuck{};
+  Duck ducks[MAX_DUCKS]{};
+  Henry henry{};
 };

@@ -1,6 +1,6 @@
-# What `tools/parity/run.sh --script idle` reported at CE-3, recorded, not predicted.
+# What `tools/parity/run.sh --script idle` reports. run.sh fails when the report changes.
 # Each indented line is a field, the first frame it differs on, and both values.
-# CE-4 fixes each one and deletes this file.
+# Rewrite it with `run.sh --record idle` only for a change the PR means to make.
 idle DIVERGES at frame 0 field henry_x
   henry_x first differs at frame 0: port 63, original 60
   henry_y first differs at frame 0: port 31, original 32

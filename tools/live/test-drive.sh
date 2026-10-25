@@ -401,7 +401,17 @@ t_start_level_refuses_live_bin() {
   [ $? = 1 ] && [[ "$out" == *"unset LIVE_BIN"* ]]
 }
 
+t_start_level_refuses_a_running_game() {
+  local lane=$((LANE_BASE + 3)) out rc
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  out="$(LIVE_LANE=$lane "$DRIVE" start --level 2 2>&1)"
+  rc=$?
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$rc" = 1 ] && [[ "$out" == *"run drive.sh stop first"* ]]
+}
+
 check "ce-3: start --level rejects bad values" t_start_level_rejects_bad_values
+check "ce-3: start --level refuses a running game" t_start_level_refuses_a_running_game
 check "ce-3: start --level refuses LIVE_BIN" t_start_level_refuses_live_bin
 check "item 1: a key script does not glob" t_glob_in_key_script
 check "item 2: an empty script is a no-op" t_empty_script_is_a_noop

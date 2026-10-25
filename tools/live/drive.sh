@@ -133,6 +133,7 @@ cmd_start() {
   fi
   need Xvfb xdotool
   if game_running; then
+    [ $# -eq 0 ] || die "a game already runs on display $DISPLAY and may be on another level; run drive.sh stop first"
     echo "start: game already running (pid $(pid_of "$STATE/game.pid"), display $DISPLAY)"
     return 0
   fi

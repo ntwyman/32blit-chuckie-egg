@@ -8,7 +8,7 @@
 
 #include "chuckie.c"
 #include "inputs.h"
-#include "trace.h"
+#include "trace_write.h"
 
 #include <signal.h>
 #include <unistd.h>
@@ -58,6 +58,7 @@ void RenderFrame(void) {
   t.henry_partial_x = player_partial_x;
   t.henry_partial_y = player_partial_y;
   t.henry_mode = player_mode;
+  t.dead = is_dead != 0 || player_y < 0x11;
   t.score = digits(player_data->score, 8);
   t.lives = player_data->lives;
   t.bonus = digits(bonus, 4);

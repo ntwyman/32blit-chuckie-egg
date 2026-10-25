@@ -1007,6 +1007,8 @@ void Game::Step(uint8_t buttons) {
     }
 }
 
+static_assert(TRACE_MAX_HENS >= MAX_DUCKS, "FrameTrace must hold every hen");
+
 FrameTrace Game::Snapshot() {
     FrameTrace t = {};
     const Henry &h = this->henry;
@@ -1018,17 +1020,18 @@ FrameTrace Game::Snapshot() {
     t.henry_partial_x = h.partial.x;
     t.henry_partial_y = h.partial.y;
     t.henry_mode = h.state;
+    t.dead = this->state == GameState::GAME_OVER;
     t.score = this->score;
     t.lives = this->playerData[this->currentPlayer].lives;
     t.bonus = this->bonus;
     t.timer = this->timer;
     t.has_lift = this->hasLift;
     if (this->hasLift) {
-        for (int i = 0; i < 2; i++) {
-            Point lift = this->upstreamPosition(Point(this->liftX, this->liftY[i]));
-            t.lift_x = lift.x;
-            t.lift_y[i] = lift.y;
-        }
+        Point lift0 = this->upstreamPosition(Point(this->liftX, this->liftY[0]));
+        Point lift1 = this->upstreamPosition(Point(this->liftX, this->liftY[1]));
+        t.lift_x = lift0.x;
+        t.lift_y[0] = lift0.y;
+        t.lift_y[1] = lift1.y;
     }
     t.duck_timer = this->duckTimer;
     t.current_duck = this->currentDuck;

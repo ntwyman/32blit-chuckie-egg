@@ -26,11 +26,11 @@ static inline void inputs_fail(const char *path, int line, const char *what, con
   exit(2);
 }
 
-// Parses a whole number from 1 to max, or returns 0.
+// Parses a whole number from 1 to max with no leading zero, or returns 0.
 static inline long inputs_number(const char *text, long max) {
   char *end;
   long n;
-  if (text[0] < '0' || text[0] > '9') {
+  if (text[0] < '1' || text[0] > '9') {
     return 0;
   }
   n = strtol(text, &end, 10);
@@ -82,6 +82,9 @@ static inline Inputs inputs_read(const char *path) {
     int words = 0;
     char *hash = strchr(line, '#');
     line_no++;
+    if (strchr(line, '\n') == NULL && !feof(f)) {
+      inputs_fail(path, line_no, "line longer than 254 characters, starting", "...");
+    }
     if (hash != NULL) {
       *hash = '\0';
     }
@@ -132,6 +135,13 @@ static inline Inputs inputs_read(const char *path) {
   fclose(f);
   if (in.count == 0) {
     fprintf(stderr, "%s: no frames\n", path);
+    exit(2);
+  }
+  // The port enters the level on an A press, so a jump held on frame 0 is no
+  // new press there, while upstream jumps. That difference would come from
+  // the driver, not the game.
+  if (in.buttons[0] & 0x10) {
+    fprintf(stderr, "%s: frame 0 must not hold jump\n", path);
     exit(2);
   }
   return in;

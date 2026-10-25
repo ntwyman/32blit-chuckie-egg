@@ -27,6 +27,9 @@ set(CHUCKIE_START_LEVEL 1 CACHE STRING "The level a new game starts on, as the H
 if(NOT CHUCKIE_START_LEVEL MATCHES "^[1-9][0-9]*$" OR CHUCKIE_START_LEVEL GREATER 256)
   message(FATAL_ERROR "CHUCKIE_START_LEVEL must be a whole number from 1 to 256, got '${CHUCKIE_START_LEVEL}'")
 endif()
+if(NOT CHUCKIE_START_LEVEL EQUAL 1)
+  message(STATUS "A new game starts on level ${CHUCKIE_START_LEVEL} (CHUCKIE_START_LEVEL)")
+endif()
 
 blit_executable (${PROJECT_NAME} ${PROJECT_SOURCE})
 blit_assets_yaml (${PROJECT_NAME} assets.yml)
@@ -38,6 +41,9 @@ option(CHUCKIE_PARITY "Build the host-only trace diff drivers in tools/parity" O
 if(CHUCKIE_PARITY)
   if(CMAKE_CROSSCOMPILING OR EMSCRIPTEN)
     message(FATAL_ERROR "CHUCKIE_PARITY builds host tools; turn it off for device and web builds")
+  endif()
+  if(NOT CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    message(FATAL_ERROR "CHUCKIE_PARITY needs GCC or Clang, bash, and patch")
   endif()
 
   set(UPSTREAM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pbrook-chuckie-egg)
@@ -62,7 +68,9 @@ if(CHUCKIE_PARITY)
   target_include_directories(parity-original PRIVATE ${PARITY_GEN} ${PARITY} ${UPSTREAM})
   # GCC cannot see that upstream's num_ducks is at most 5 and warns on the
   # duck[] writes in StartLevel. The upstream code stays as it is.
-  target_compile_options(parity-original PRIVATE -Wno-stringop-overflow)
+  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(parity-original PRIVATE -Wno-stringop-overflow)
+  endif()
 
   add_custom_target(parity DEPENDS parity-port parity-original)
 endif()

@@ -165,7 +165,7 @@ jobs:
       shell: bash
       env:
         PARITY_CMAKE_ARGS: -D32BLIT_DIR=${{github.workspace}}/32blit-sdk -DPython_EXECUTABLE=${{steps.python.outputs.python-path}}
-      run: tools/parity/run.sh --all
+      run: tools/parity/run.sh --self-test && tools/parity/run.sh --all
 
     # When it's a release, generate tar/zip files of the build
     - name: Package Release

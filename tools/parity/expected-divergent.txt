@@ -1,6 +1,8 @@
 # Scripts whose traces diverge today, one name per line. A listed script that
-# passes fails run.sh, so this list only shrinks.
+# passes fails run.sh, so this list only shrinks. Each one has its report
+# pinned in <name>-divergences.txt.
 idle
+idle-level3
 jump-left
 long-play
 walk-right
