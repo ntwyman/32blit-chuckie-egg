@@ -1,0 +1,23 @@
+ts	phase	decision	why	evidence	result
+2026-10-24T22:33:34Z	start	own CE-2 (#5) on ce-2/live-driver	brief	branch from b1c3c6e	ok
+2026-10-24T22:53:39Z	unit	drive.sh + golden + key scripts	xvfb 640x480; smoke finds golden in recorded burst	smoke x6 all ok, 4.15s each	pass
+2026-10-24T22:54:54Z	pr	opened PR #16	ready not draft	9b756f3	ok
+2026-10-24T22:58:41Z	subagent	spawned comment-sicko a58d82696ac6c32e8	no-comments pass on diff, edits working tree only	stuck if no output after ~10 min	running
+2026-10-24T23:02:39Z	code-ready	deslop and no-comments done	comment-sicko removed 5 comments	fe11fc601ac2f06bcb9594cb8970197c2dbbc4e8	code-ready
+2026-10-24T23:24:26Z	babysit	CI green, no review threads after 25 min	gh api reviews/comments empty	fe11fc6	stack-ready
+2026-10-25T01:02:33Z	start	CE-2 fix round 1	root swarm ISSUES at eb4ed88	brief ce-2-fix-1.md	eb4ed88
+2026-10-25T01:15:25Z	code-ready	fix round 1 pushed	test-drive 19 of 20 checks fail at eb4ed88 except 3 regression guards	b4693ee	code-ready
+2026-10-25T01:20:40Z	babysit	CI green at c24c364	item 7 test flaked once in CI at b4693ee, fixed	run 40150142346	green
+2026-10-25T01:51:04Z	start	CE-2 fix round 2	brief ce-2-fix-2.md	base a7d012c, lanes 40-49	a7d012c
+2026-10-25T02:21:36Z	babysit	fix round 2 done	CI green at 05102f5, 20/20 smoke, strict lanes restored	run 40153254794	green
+2026-10-25T02:32:46Z	start	CE-2 fix round 3	brief ce-2-fix-3.md, nine minor findings	base 05102f5, lanes 80-89	05102f5
+2026-10-25T02:39:00Z	subagent	deslop and no-comments review	agent a2ac1e60e0c607261, stuck if no result in 15 min	diff of 5 files	spawned
+2026-10-25T02:51:21Z	babysit	fix round 3 done	CI green at e64ea59, no review threads	run 40155278676	green
+2026-10-25T03:01:14Z	start	CE-2 fix round 4	brief ce-2-fix-4.md, nested self-check lanes	base e64ea59, lanes 100-129	e64ea59
+2026-10-25T05:52:35Z	start	CE-2 fix round 4 takeover	previous owner stopped on usage limit after local commit b632275, unpushed; cherry-picking it	base e64ea59, lanes 100-129	e64ea59
+2026-10-25T05:55:42Z	push	fix round 4 pushed	fast-forward e64ea59 to 76b68c2, commented on #5	cherry-pick of b632275	76b68c2
+2026-10-25T06:12:00Z	babysit	fix round 4 done	CI green at 76b68c2, 0 review threads after 10+ min	run 40167282100	green
+2026-10-25T12:26:17Z	start	CE-2 fix round 5 takeover	Copilot findings 4370814210 and 4370814228 on 76b68c2	base 76b68c2, lanes 530-559	76b68c2
+2026-10-25T16:06:30Z	start	CE-2 fix round 5 second takeover	previous round-5 owner stopped on usage limit before committing; applying its saved wip patch	base 76b68c2, lanes 530-559, branch ce-2-fix5-takeover	76b68c2
+2026-10-25T16:08:04Z	start	CE-2 fix round 5 third takeover	second owner stopped before committing; applying wip2 patch	base 76b68c2, lanes 530-559, branch ce-2-fix5-own	76b68c2
+2026-10-25T16:12:11Z	pause	paused on root order	operator moving machines	pushed f1794c5 (fixes 4440573, b1d2d54); full runs failing, undiagnosed	next: diagnose the failures in /tmp/swarm-ce-2/owner-fix-5/*.log

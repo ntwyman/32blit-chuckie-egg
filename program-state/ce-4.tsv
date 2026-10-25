@@ -1,0 +1,9 @@
+ts	phase	decision	why	evidence	result
+2026-10-25T11:55:18Z	unit1	idle fixes: screenPosition for start coords, slot 8 return	idle report listed start x/y and hen schedule	run.sh --script idle PASS; walk-right,jump-left PASS	committed
+2026-10-25T11:55:55Z	pr	opened PR 22	build+push done	https://github.com/ntwyman/32blit-chuckie-egg/pull/22	ok
+2026-10-25T11:56:34Z	code-ready	code-ready 25244db	deslop+no-comments done (subagent ac8839c18242fde5a, stuck-after none)	run.sh --all PASS	ok
+2026-10-25T12:03:04Z	unit3	ladder partial 3 and collision y sign fixes, climb+fall scripts	live climb lane diverged from original at frame 28 and 78	analyze.py 0 mismatches on climbright, fall, idle20, jump	ok
+2026-10-25T12:18:11Z	proof	self-proof complete at 7d44ca3	10 lanes + perf + media	/tmp/swarm-ce-4/owner/all.txt perf.txt	ok
+2026-10-25T16:06:51Z	start	takeover by new owner at 07b9e5e (local branch ce-4-owner2 tracking origin/ce-4/frame-clock, since ce-4/frame-clock is held by the old worktree)	previous owner hit usage limit	git rev-parse HEAD 07b9e5e	ok
+2026-10-25T16:08:07Z	start	owner3 takeover at 07b9e5e, local branch ce-4-owner3 in own worktree	owner2 stopped before finishing	HEAD is 07b9e5e	ok
+2026-10-25T16:11:06Z	pause	pause at head 07b9e5e, nothing to push	root pause order	next: finish golden diff reading, wait for Copilot review at 07b9e5e, triage, poll threads 10 min, media check, report	ok

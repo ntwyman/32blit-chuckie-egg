@@ -1,0 +1,30 @@
+# CE-1 verification swarm brief
+
+You are one independent verifier for CE-1, PR https://github.com/ntwyman/32blit-chuckie-egg/pull/15. You did not write this code. Do not trust the PR body or the owner's claims. Check everything yourself against the real artifacts.
+
+## Fixed inputs
+
+- Head SHA: `b1c3c6ec54cb3d90148c6f16c086332e249c880d` (branch `ce-1/gpl-relicense`).
+- Trunk SHA: `4927e4c0792ee26efc2333e2214f1a6289c06280` (`main`).
+- Plan: `git show b1c3c6e:docs/plans/port-completion.md`, section "Add the original source, relicense under GPLv3, and credit the original (CE-1)", and the "Boot recipe, for every live lane" section.
+- Upstream: `https://github.com/pbrook/Chuckie-Egg` at `e18004643193a8ff9434cf77b15a13219f6d745e`. Clone it yourself into your own scratch folder. Do not reuse another agent's clone.
+
+## Rules
+
+- Work only in your own worktree at the exact SHA: `git worktree add /tmp/lane-ce-1-<n> <SHA>`, where `<n>` is your lane number below. Never edit files in `/workspaces/32blit-chuckie-egg` itself. Never push. Never comment on the PR or issues.
+- Build there with `cmake -B build.sdl && cmake --build build.sdl -j` (and `build.stm32` or `build.web` with the SDK's toolchain files in `/opt/32blit-sdk` when your lane needs them). Never call `docker`.
+- CE-2 has not landed, so there is no `tools/live/drive.sh`. Start the game by hand: `Xvfb :<99+n> -screen 0 640x480x24 &`, then `DISPLAY=:<99+n> ./build.sdl/chuckie-egg &`. Use 640x480, not the plan's 320x240, because the SDL window is 640x480. Send keys with `DISPLAY=:<99+n> xdotool`. The A button is the `z` key. From boot, press `z` at "How many players", then `z` at "Ready player", and play starts. Take screenshots with `DISPLAY=:<99+n> import -window root <path>`. Kill your own Xvfb and game when done.
+- Save every screenshot and log under `/tmp/swarm-ce-1/worker-<n>/`.
+- Your report starts with one of `PASS`, `ISSUES`, or `BLOCKED`. It names the SHA you tested and the exact commands you ran. A worker that can prove a defect reports `ISSUES` and lists every defect it can prove, each with the command and output that proves it. List screenshot paths. A defect you find counts even if you think it is minor. Do not downgrade it to a note.
+
+## Lanes
+
+Your brief names exactly one lane. Do only that lane.
+
+- **Lane 1, gates.** Re-run the plan's CE-1 "You see" and "Verify, unit" boxes literally at head. `rg -l "MIT License" LICENSE README.md` prints nothing. `rg --files-without-match "GPL-3.0-only" -g '*.{cpp,hpp}'` prints nothing. `git -C <your upstream clone> ls-files | grep -v '^models/blender/'` lists exactly the files in `third_party/pbrook-chuckie-egg/` other than its `README.md`, and `diff -r` of each file against the clone shows no content change. `cmp LICENSE third_party/pbrook-chuckie-egg/COPYING` succeeds. `tools/check-license.sh` exits 0, and exits non-zero naming the file when you delete the SPDX line from `game.cpp` in a scratch copy. Build SDL and STM32 at head and at trunk and compare warnings: pass only if head adds none.
+- **Lane 2, cpack.** Plan lane 2. Run `cpack` in `build.sdl`. Save `cpack-listing.png` of the `tar tzf` output (render the text to an image with ImageMagick `convert` or `import` on a terminal). Pass when the archive lists `LICENSE` and `README.md`, `LICENSE` contains "GNU GENERAL PUBLIC LICENSE" and "Version 3", and the archived `README.md` names Paul Brook and A & F Software.
+- **Lane 5, web.** Plan lane 5. Build the web target, serve it with `python3 -m http.server <port>` on a free port, and load it in headless Chromium driven by Playwright from `/opt/venv`. Save `web-load.png`. Pass when the player-count screen renders.
+- **Lane 9, walk.** Plan lane 9. Start the SDL build at head, choose one player, and hold right (`d` or the right arrow, whichever moves Henry) for five seconds. Save `walk-before.png` and `walk.png`. Pass when the game still runs and Henry has moved. Also run the same at trunk and save `walk-trunk.png`. Report whether head and trunk behave the same.
+- **Lane P, perf.** Plan "Verify, perf" for CE-1. Build the STM32 target at trunk, then head, then trunk, then head, each a clean build in its own build directory, and record `stat -c %s` of `chuckie-egg.blit` each time. Record the trunk size first. Fail if head differs from trunk by more than 64 bytes. Report all four numbers and say whether the two trunk builds and the two head builds agree with each other.
+- **Lane A1, audit: license and attribution.** Read `git diff 4927e4c b1c3c6e` outside `third_party/`. Check the plan's CE-1 Build boxes one by one: the header text in every `.cpp` and `.hpp` (SPDX line, "Copyright (C) 2009-2011 Paul Brook", "32Blit port Copyright (C) 2020-2026 ntwyman", and the data-source line in `levels.cpp` and `sprites.cpp`), the README credits wording, the `metadata.yml` description string exactly as the plan gives it, and `third_party/pbrook-chuckie-egg/README.md` naming the URL, the commit, GPLv3, the excluded folder, and that it is a read-only reference copy. Check that the change to each source file is only its header comment, so no code changed. Check that every changed path is inside CE-1's file boundary in the plan's "Hold the file boundaries" list.
+- **Lane A2, audit: CI and build wiring.** Read the diff to `.github/workflows/build.yml`, `CMakeLists.txt`, and `tools/check-license.sh`. Check that the license check runs in CI and would fail the job when it fails, that the workflow path filters still trigger on every file that matters, that `check-license.sh` is correct when run from any directory and catches a missing SPDX line in any `*.cpp` or `*.hpp` file, including ones in subfolders that should be checked, without checking `third_party/`. Check that `CMakeLists.txt` changes do not alter what the build produces or installs beyond what the plan asks (for example, `LICENSE` and `README.md` in the `cpack` archive). Confirm the CI run at head with `gh run list --branch ce-1/gpl-relicense` and `gh run view`.
