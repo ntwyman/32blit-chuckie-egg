@@ -467,7 +467,7 @@ void Game::jumpHenry(Henry &h) {
         fallRate = 6;
     h.speed.y = 2 - fallRate;
     h.falling++;
-    if (h.pos.y == 19) { // Top
+    if (h.pos.y == 19) {
         h.speed.y = -1;
         h.falling = 10;
     } else if (this->canGrabLadder(h, speedY)) {
@@ -985,7 +985,7 @@ void Game::Step(uint8_t buttons) {
             this->moveDucks();
             this->detectCollisions();
 
-            if (this->henry.pos.y > 222 || this->isDead) { // DED
+            if (this->henry.pos.y > 222 || this->isDead) {
                 this->state = GameState::GAME_OVER;
                 break;
             }
