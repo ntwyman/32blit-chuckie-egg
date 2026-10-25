@@ -149,6 +149,8 @@ private:
 
   // input
   uint8_t buttonsDown{};
+  uint8_t rawDown{};
+  uint8_t ignored{};
   uint8_t newDown{};
 
   // Level info
