@@ -51,6 +51,8 @@ void Game::startGame() {
 }
 
 void Game::loadLevel() {
+    this->ignored = this->rawDown;
+    this->buttonsDown = 0;
 
     // Clear out the existing tiles
     memset(&this->tiles[0], 0, sizeof(this->tiles));
@@ -969,8 +971,10 @@ void Game::Step(uint8_t buttons) {
         debugf("State change: %s\r\n", stateToString(h.state));
         h.priorState = h.state;
     }
-    this->newDown = (this->buttonsDown ^ buttons) & buttons;
-    this->buttonsDown = buttons;
+    this->newDown = (this->rawDown ^ buttons) & buttons;
+    this->rawDown = buttons;
+    this->ignored &= buttons;
+    this->buttonsDown = buttons & ~this->ignored;
 
     switch (this->state) {
         case GameState::HOW_MANY:

@@ -433,6 +433,29 @@ t_start_level_refuses_a_running_game() {
   [ "$rc" = 1 ] && [[ "$out" == *"run drive.sh stop first"* ]]
 }
 
+t_held_start_press_does_not_jump() {
+  local lane=$((LANE_BASE + 4)) state log i
+  state="$(lane_state $lane)"
+  log="$state/game.log"
+  printf 'z 100\nwait 500\nz 600\n' >"$TMP/hold-start.keys"
+  printf 'z 1500\n' >"$TMP/hold-jump.keys"
+  for i in 1 2 3; do
+    LIVE_LANE=$lane LIVE_WINDOW_WAIT=8 "$DRIVE" start >/dev/null 2>&1 && break
+    LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+    [ "$i" != 3 ] || return 1
+  done
+  LIVE_LANE=$lane "$DRIVE" keys "$TMP/hold-start.keys" >/dev/null 2>&1
+  sleep 0.3
+  local early jumps
+  early="$(sed -n '/Loaded level/,$p' "$log" | grep -c 'State change: Jump')"
+  LIVE_LANE=$lane "$DRIVE" keys "$TMP/hold-jump.keys" >/dev/null 2>&1
+  sleep 0.3
+  jumps="$(grep -c 'State change: Jump' "$log")"
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$early" = 0 ] && [ "$jumps" -ge 2 ]
+}
+
+check "held-jump: a jump held from Ready player waits for release" t_held_start_press_does_not_jump
 check "ce-3: game.log shows debugf lines while the game runs" t_game_log_shows_debugf_while_running
 check "ce-3: start --level rejects bad values" t_start_level_rejects_bad_values
 check "ce-3: start --level refuses a running game" t_start_level_refuses_a_running_game
