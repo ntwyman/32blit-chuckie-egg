@@ -1,10 +1,10 @@
-# Basic parameters; check that these match your project / environment
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2009-2011 Paul Brook
+# 32Blit port Copyright (C) 2020-2026 ntwyman
 cmake_minimum_required(VERSION 3.9)
 
-# Replace "game" with a name for your project (this is used the name of the output)
 project(chuckie-egg)
 
-# Add your sources here (adding headers is optional, but helps some CMake generators)
 set(PROJECT_SOURCE
   chuckie_egg.cpp
   game.cpp game.hpp
@@ -12,7 +12,6 @@ set(PROJECT_SOURCE
   sprites.cpp sprites.hpp
 )
 
-# ... and any other files you want in the release here
 set(PROJECT_DISTRIBS LICENSE README.md)
 
 # Build configuration; approach this with caution!

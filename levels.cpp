@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2009-2011 Paul Brook
+// 32Blit port Copyright (C) 2020-2026 ntwyman
+// The level data comes from leveldata.c in Paul Brook's Chuckie Egg.
+
 #include "levels.hpp"
 
 static const uint8_t level1[] = { 

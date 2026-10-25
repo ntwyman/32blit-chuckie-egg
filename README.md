@@ -1,6 +1,6 @@
 # Chuckie Egg for 32blit
 
-![Build](https://github.com/32blit/32blit-boilerplate/workflows/Build/badge.svg)
+![Build](https://github.com/ntwyman/32blit-chuckie-egg/workflows/Build/badge.svg)
 
 A work-in-progress port of the classic Chuckie Egg, originally developed in
 [ntwyman/32blit-beta](https://github.com/ntwyman/32blit-beta/tree/a6f2bce8b749c0004990718a892a6ca9fcd325d4/examples/chuckie-egg)
@@ -8,17 +8,30 @@ and moved here (built on the
 [32blit boilerplate](https://github.com/32blit/32blit-boilerplate)) to build
 against the current [32Blit SDK](https://github.com/32blit/32blit-sdk).
 
-## Usage
+## Credits
 
-[Use this template](https://github.com/32blit/32blit-boilerplate/generate) to
-generate your own project.
+Chuckie Egg is the original game by A & F Software. This port is based on Paul
+Brook's C source, [Chuckie Egg](https://github.com/pbrook/Chuckie-Egg),
+released under the GNU GPL v3. A read-only copy of that source, pinned to one
+commit, is in [`third_party/pbrook-chuckie-egg/`](https://github.com/ntwyman/32blit-chuckie-egg/tree/main/third_party/pbrook-chuckie-egg).
+The level and sprite data in `levels.cpp` and `sprites.cpp` come from Paul
+Brook's `leveldata.c` and `spritedata.c`.
 
-* Edit the CMakeList.txt file to set the name of your project
-* Edit the metadata.yml file to set the information for your project
-* Edit the LICENSE file to set your name on the license
-* Write lots of super cool code!
+## License
 
-You should then be able to follow the usual build instructions.
+This port is released under the GNU GPL v3, the same license as the C source it
+is based on. See [`LICENSE`](LICENSE). Each source file carries an SPDX header
+that credits Paul Brook and this port.
+
+The port changes the original as follows.
+
+* It is C++ on the 32Blit SDK. The original's SDL, OpenGL, and ncurses front
+  ends are not used.
+* It draws the game from a 32Blit sprite sheet, not from the original's
+  renderers and 3D models.
+* It does not play the original's sound yet.
+
+## Building
 
 For local builds this is:
 ```
