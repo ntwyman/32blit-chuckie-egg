@@ -6,7 +6,9 @@
 #include "inputs.h"
 #include "trace_write.h"
 
+#include <algorithm>
 #include <chrono>
+#include <vector>
 #include <cstdio>
 #include <cstring>
 
@@ -26,6 +28,8 @@ namespace blit {
 const APIConst &api = host_api;
 APIData &api_data = host_api_data;
 }
+
+static const int BATCH_RUNS = 200;
 
 static const char usage[] = "port_driver [--level <n>] <script.inputs> [--bench]";
 
@@ -48,6 +52,21 @@ static double meanStepMicros(const Inputs &in, size_t frames) {
   return took.count() / (double)frames;
 }
 
+static double medianBatchMicros(const Inputs &in, size_t frames, int runs) {
+  std::vector<double> took;
+  for (int run = 0; run < runs; run++) {
+    Game game(in.level);
+    enterLevel(game);
+    auto start = std::chrono::steady_clock::now();
+    for (size_t frame = 0; frame < frames; frame++) {
+      game.Step(in.buttons[frame]);
+    }
+    took.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
+  }
+  std::sort(took.begin(), took.end());
+  return took[took.size() / 2];
+}
+
 static void bench(const Inputs &in) {
   Game game(in.level);
   enterLevel(game);
@@ -63,6 +82,8 @@ static void bench(const Inputs &in) {
           meanStepMicros(in, in.count));
   fprintf(stderr, "port_driver: %zu steps up to the first death, mean %.3f us per Game::Step\n",
           framesToFirstDeath, meanStepMicros(in, framesToFirstDeath));
+  fprintf(stderr, "port_driver: batch of %zu steps up to the first death, median %.1f us over %d runs\n",
+          framesToFirstDeath, medianBatchMicros(in, framesToFirstDeath, BATCH_RUNS), BATCH_RUNS);
 }
 
 int main(int argc, char **argv) {
