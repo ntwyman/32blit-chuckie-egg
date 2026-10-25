@@ -44,7 +44,9 @@ compare() {
     echo "run.sh: a trace is empty: $1 $2" >&2
     exit 2
   }
-  awk -v port="$1" -v orig="$2" '
+  local diffs report
+  diffs="$(mktemp)"
+  report="$(awk -v port="$1" -v orig="$2" -v diffs="$diffs" '
     function load(line, names, values, order,    n, i, kv) {
       n = split(line, kv, " ")
       for (i = 1; i <= n; i++) {
@@ -71,11 +73,14 @@ compare() {
           if (i > no && (f in on)) continue
           a = (f in pn) ? pv[f] : "-"
           b = (f in on) ? ov[f] : "-"
-          if (a != b && !(f in first)) {
-            first[f] = frame
-            fields[++nf] = f
-            pval[f] = a
-            oval[f] = b
+          if (a != b) {
+            print frame, f, a, b >diffs
+            if (!(f in first)) {
+              first[f] = frame
+              fields[++nf] = f
+              pval[f] = a
+              oval[f] = b
+            }
           }
         }
         frame++
@@ -86,7 +91,12 @@ compare() {
         f = fields[i]
         print "  " f " first differs at frame " first[f] ": port " pval[f] ", original " oval[f]
       }
-    }'
+    }')"
+  echo "$report"
+  if [ -s "$diffs" ]; then
+    echo "  every difference: $(wc -l <"$diffs") field values over $(cut -d' ' -f1 "$diffs" | sort -u | wc -l) frames, sha256 $(sha256sum <"$diffs" | cut -c1-16)"
+  fi
+  rm -f "$diffs"
 }
 
 report() {
@@ -154,7 +164,7 @@ record() {
   out="$(report "$name")"
   {
     echo "# What \`tools/parity/run.sh --script $name\` reports. run.sh fails when the report changes."
-    echo "# Each indented line is a field, the first frame it differs on, and both values."
+    echo "# Each indented line is a field, the first frame it differs on, and both values. The last line counts and hashes every difference."
     echo "# Rewrite it with \`run.sh --record $name\` only for a change the PR means to make."
     echo "$out"
   } >"$(pinned "$name")"
@@ -170,6 +180,9 @@ self_test() {
   printf 'frame=0 a=1 b=2\n' >"$d/short"
   printf 'frame=0 a=1 b=2\nframe=1 abort=1\n' >"$d/abort"
   printf 'frame=0 a=1 b=2 c=4\nframe=1 a=1 b=2 c=4\n' >"$d/extra"
+  printf 'frame=0 a=1 b=2\nframe=1 a=1 b=3\nframe=2 a=1 b=3\n' >"$d/late3"
+  printf 'frame=0 a=1 b=2\nframe=1 a=1 b=3\nframe=2 a=1 b=9\n' >"$d/late9"
+  printf 'frame=0 a=1 b=2\nframe=1 a=1 b=2\nframe=2 a=1 b=2\n' >"$d/flat"
   : >"$d/empty"
   expect() {
     if [ "$got" != "$1" ]; then
@@ -187,6 +200,14 @@ self_test() {
   expect "DIVERGES at frame 1 field abort" "original aborts"
   got="$(compare "$d/extra" "$d/base" | head -1)"
   expect "DIVERGES at frame 0 field c" "a field only the port has"
+  got="$(compare "$d/late3" "$d/flat" | head -2 | tail -1)"
+  expect "  b first differs at frame 1: port 3, original 2" "first difference line"
+  got="$(compare "$d/late3" "$d/flat" | tail -1 | cut -d, -f1)"
+  expect "  every difference: 2 field values over 2 frames" "difference count"
+  got="$([ "$(compare "$d/late3" "$d/flat" | tail -1)" != "$(compare "$d/late9" "$d/flat" | tail -1)" ] && echo differ || echo same)"
+  expect "differ" "a field changing only after its first divergence"
+  got="$([ "$(compare "$d/late3" "$d/flat")" = "$(compare "$d/late3" "$d/flat")" ] && echo same || echo differ)"
+  expect "same" "the same traces report the same"
   got="$( (compare "$d/empty" "$d/empty") 2>/dev/null)" || got="refused"
   expect "refused" "empty traces"
   rm -rf "$d"

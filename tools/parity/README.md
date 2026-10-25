@@ -18,6 +18,8 @@ tools/parity/run.sh --self-test
 
 `--script <name>` prints the full report: the result line, then one line per field that ever differs, with the first frame it differs on and both values. A `-` value means that side has no such field on that frame. Fields that first differ on the same frame keep the original's field order.
 
+The last line of a diverging report, `every difference: <n> field values over <m> frames, sha256 <digest>`, covers every frame and field that differs, not only the first difference per field. The digest hashes the list of `<frame> <field> <port> <original>` for each differing value. Without it, a field that already differs would pass CI however it changed afterwards, so a listed script could regress unnoticed. A change to any later value of any field changes the digest and fails the run.
+
 `--record <name>` rewrites `<name>-divergences.txt` from the current report. Run it only for a change the PR means to make, and say so in the PR, because the pinned reports are what holds later PRs to the original. When a fix makes a script pass, delete its report and its line in `expected-divergent.txt`.
 
 `--self-test` checks the comparator on fixed traces. CI runs it before `--all`.
