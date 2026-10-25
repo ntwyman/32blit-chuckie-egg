@@ -256,23 +256,45 @@ ms_sleep() {
   sleep "$(awk -v ms="$1" 'BEGIN { printf "%.3f", ms / 1000 }')"
 }
 
+HELD_KEYS=""
+
+release_held() {
+  [ -z "${HOLD_PID:-}" ] || kill "$HOLD_PID" 2>/dev/null || true
+  [ -z "$HELD_KEYS" ] || xdotool keyup ${HELD_KEYS//+/ } 2>/dev/null || true
+  HELD_KEYS=""
+}
+
+hold_for() {
+  sleep "$(awk -v ms="$1" 'BEGIN { printf "%.3f", ms / 1000 }')" &
+  HOLD_PID=$!
+  wait "$HOLD_PID"
+  HOLD_PID=""
+}
+
 cmd_keys() {
   [ $# -eq 1 ] || die "usage: drive.sh keys <script>"
   need xdotool
-  local file steps key ms
+  local file steps key ms saved
   file="$(resolve_script "$1")"
   steps="$(parse_keys "$file")" || exit 2
   [ -n "$steps" ] || return 0
   game_running || die "game is not running, run: drive.sh start"
+  saved="$(trap -p INT TERM EXIT)"
+  trap 'release_held' EXIT
+  trap 'release_held; trap - INT TERM EXIT; eval "$saved"; kill -s INT $$' INT
+  trap 'release_held; trap - INT TERM EXIT; eval "$saved"; kill -s TERM $$' TERM
   while read -r key ms; do
     if [ "$key" = wait ]; then
       ms_sleep "$ms"
     else
+      HELD_KEYS="$key"
       xdotool keydown ${key//+/ }
-      ms_sleep "$ms"
-      xdotool keyup ${key//+/ }
+      hold_for "$ms"
+      release_held
     fi
   done <<<"$steps"
+  trap - INT TERM EXIT
+  eval "$saved"
 }
 
 cmd_shot() {

@@ -253,6 +253,41 @@ t_failed_smoke_leaves_artifacts() {
   [ "$(grep -c 'selected frame' <<<"$out")" = 1 ] && [[ "$out" != *retrying* ]]
 }
 
+key_is_down() {
+  python3 -I -c '
+import ctypes, ctypes.util, sys
+x = ctypes.CDLL(ctypes.util.find_library("X11"))
+x.XOpenDisplay.restype = ctypes.c_void_p
+x.XOpenDisplay.argtypes = [ctypes.c_char_p]
+x.XStringToKeysym.restype = ctypes.c_ulong
+x.XKeysymToKeycode.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+x.XQueryKeymap.argtypes = [ctypes.c_void_p, ctypes.c_char * 32]
+d = x.XOpenDisplay(sys.argv[1].encode())
+kc = x.XKeysymToKeycode(d, x.XStringToKeysym(sys.argv[2].encode()))
+buf = (ctypes.c_char * 32)()
+x.XQueryKeymap(d, buf)
+print(1 if buf.raw[kc // 8] & (1 << (kc % 8)) else 0)
+' ":$((99 + $1))" "$2"
+}
+
+t_terminated_keys_release_the_held_key() {
+  local lane=$((LANE_BASE + 2)) keys pid held=0 after
+  printf 'z 20000\n' >"$TMP/hold.keys"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  LIVE_LANE=$lane "$DRIVE" keys "$TMP/hold.keys" >/dev/null 2>&1 &
+  keys=$!
+  for _ in $(seq 1 50); do
+    [ "$(key_is_down $lane z)" = 1 ] && { held=1; break; }
+    sleep 0.1
+  done
+  kill -TERM "$keys"
+  wait "$keys" 2>/dev/null
+  sleep 0.3
+  after="$(key_is_down $lane z)"
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$held" = 1 ] && [ "$after" = 0 ]
+}
+
 t_numbers_parse_as_decimal() {
   local out
   [ "$(LIVE_LANE=08 "$DRIVE" stop 2>&1)" = "stop: nothing running" ] || return 1
@@ -360,6 +395,7 @@ check "item 9: a non-numeric LIVE_LANE is rejected" t_rejects_a_non_numeric_lane
 check "item 9: a failed smoke leaves the frame and game.log" t_failed_smoke_leaves_artifacts
 check "item 1: README has no stale heap garbage note" t_readme_has_no_stale_heap_garbage_note
 check "item 4: the last attempt says no attempts remain" t_last_attempt_does_not_say_retrying
+check "item 2: a terminated keys run releases the held key" t_terminated_keys_release_the_held_key
 check "item 5: numbers parse as decimal and are bounded" t_numbers_parse_as_decimal
 check "item 6: start spares a lock held by another user" t_start_spares_a_lock_held_by_another_user
 check "item 7: smoke needs exactly 640x480x24" t_smoke_needs_the_exact_screen
