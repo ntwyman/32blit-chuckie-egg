@@ -387,17 +387,17 @@ t_explicit_path_uses_the_named_file() {
 }
 
 t_game_log_shows_debugf_while_running() {
-  local lane=$((LANE_BASE + 2)) state i seen=1 running=1
+  local lane=$((LANE_BASE + 2)) state i seen=no running=no
   state="$(lane_state $lane)"
   LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
   LIVE_LANE=$lane "$DRIVE" keys start-one-player >/dev/null 2>&1
   for i in $(seq 1 30); do
-    grep -q 'Loaded level' "$state/game.log" 2>/dev/null && seen=0 && break
+    grep -q 'Loaded level' "$state/game.log" 2>/dev/null && seen=yes && break
     sleep 0.1
   done
-  LIVE_LANE=$lane bash -c 'source "$1"; game_running' _ "$DRIVE" && running=0
+  LIVE_LANE=$lane bash -c 'source "$1"; game_running' _ "$DRIVE" && running=yes
   LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
-  [ "$seen" = 0 ] && [ "$running" = 0 ]
+  [ "$seen" = yes ] && [ "$running" = yes ]
 }
 
 t_start_level_rejects_bad_values() {

@@ -95,10 +95,10 @@ int main(int argc, char **argv) {
     fprintf(stderr, "usage: original_driver [--level <n>] <script.inputs>\n");
     return 2;
   }
-  // Upstream's first start_game reads the zero-initialised current_level for
-  // the level-1 bonus, and a restart after game over reads the level Henry
-  // reached. Setting it once here gives the start level its bonus and leaves
-  // the restart as upstream plays it.
+  // Upstream's start_game calls ResetPlayer, which takes the first level's
+  // bonus from current_level: zero-initialised before the first game, and the
+  // level Henry reached on a restart after game over. Setting it once here
+  // gives the start level its bonus and leaves the restart as upstream plays it.
   parity_start_level = current_level = script.level - 1;
   signal(SIGABRT, on_abort);
   run_game();
