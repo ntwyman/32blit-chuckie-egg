@@ -43,6 +43,34 @@ int main() {
   wrap.due(now);
   expect(feed(wrap, now, 3000, 10), 100, "steps across the 32-bit timestamp wrap");
 
+  FrameClock gap;
+  now = 5000;
+  gap.due(now);
+  now += 29;
+  expect(gap.due(now), 0, "steps after a 29 ms gap");
+  now += 1;
+  expect(gap.due(now), 1, "steps after a 30 ms gap");
+
+  FrameClock backlog;
+  now = 9000;
+  backlog.due(now);
+  now += 61;
+  expect(backlog.due(now), 2, "steps after a 61 ms gap");
+  now += 28;
+  expect(backlog.due(now), 0, "steps 28 ms after a 61 ms gap");
+  now += 1;
+  expect(backlog.due(now), 1, "steps 29 ms after a 61 ms gap");
+
+  FrameClock dropped;
+  now = 13000;
+  dropped.due(now);
+  now += 91;
+  expect(dropped.due(now), 2, "steps after a 91 ms gap");
+  now += 29;
+  expect(dropped.due(now), 0, "steps 29 ms after a 91 ms gap");
+  now += 1;
+  expect(dropped.due(now), 1, "steps 30 ms after a 91 ms gap");
+
   if (failures == 0) {
     printf("clock: ok\n");
   }
