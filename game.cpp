@@ -396,13 +396,11 @@ bool Game::canGrabLadder(Henry &h, int16_t speedY) {
     int16_t x = h.tile.x;
     int16_t y = h.tile.y;
     if (speedY > 0) {
-        if ((this->getTile(x, y) & TILE_LADDER) == 0) { // Not on a ladder
-            if (h.partial.y >=4) {
-                // Check in case there's a ladder just above
-                if ((this->getTile(x, y + 1) & TILE_LADDER) == 0) {
-                    return false;
-                }
-            }
+        if ((this->getTile(x, y + 1) & TILE_LADDER) == 0) {
+            if (h.partial.y >= 4)
+                y++;
+            if ((this->getTile(x, y + 1) & TILE_LADDER) == 0)
+                return false;
         }
         h.state = HenryState::CLIMB;
         if (newPartialY & 1) {
@@ -413,7 +411,7 @@ bool Game::canGrabLadder(Henry &h, int16_t speedY) {
     if ((this->getTile(x, y) & TILE_LADDER) == 0) {
         return false;
     }
-    if ((this->getTile(x, y-1) & TILE_LADDER) == 0) {
+    if ((this->getTile(x, y+1) & TILE_LADDER) == 0) {
         return false;
     }
     h.state = HenryState::CLIMB;
