@@ -386,6 +386,23 @@ t_explicit_path_uses_the_named_file() {
   [[ "$out" == *"unknown key"* ]]
 }
 
+t_start_level_rejects_bad_values() {
+  local lane=$((LANE_BASE + 1)) bad out
+  for bad in 0 257 08 x "1 2" ""; do
+    out="$(LIVE_LANE=$lane "$DRIVE" start --level "$bad" 2>&1)"
+    [ $? = 2 ] && [[ "$out" == *"--level must be"* ]] || return 1
+  done
+  ! [ -e "$(lane_state $lane)/game.pid" ]
+}
+
+t_start_level_refuses_live_bin() {
+  local out
+  out="$(LIVE_LANE=$((LANE_BASE + 1)) LIVE_BIN=/bin/true "$DRIVE" start --level 2 2>&1)"
+  [ $? = 1 ] && [[ "$out" == *"unset LIVE_BIN"* ]]
+}
+
+check "ce-3: start --level rejects bad values" t_start_level_rejects_bad_values
+check "ce-3: start --level refuses LIVE_BIN" t_start_level_refuses_live_bin
 check "item 1: a key script does not glob" t_glob_in_key_script
 check "item 2: an empty script is a no-op" t_empty_script_is_a_noop
 check "item 3: empty combo parts are rejected with file:line" t_rejects_empty_combo_parts

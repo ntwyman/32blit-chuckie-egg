@@ -4,12 +4,10 @@
 
 #pragma once
 #include "32blit.hpp"
+#include "tools/parity/trace.h"
 #include <cstdint>
 
 enum GameState {HOW_MANY, READY_PLAYER, LEVEL, GAME_OVER};
-
-// Game frame rate was 3/100ths of a second
-#define UPDATE_INTERVAL_MS 60
 
 #define ROWS 25
 #define COLUMNS 20
@@ -93,9 +91,12 @@ struct BigDuck {
 
 class Game {
 public:
+  // startLevel is the level number the HUD shows, from 1.
+  explicit Game(unsigned int startLevel);
   void SetScreenSize(blit::Size &);
   void Render(blit::Surface &);
-  void Tickle(uint32_t);
+  void Step(uint8_t buttons);
+  FrameTrace Snapshot();
 
 private:
   unsigned int getTile(int x, int y);
@@ -114,7 +115,6 @@ private:
   void renderHenry(blit::Surface &);
   void renderLifts(blit::Surface &);
   void renderBigBird(blit::Surface &);
-  void pollKeys();
   void moveHenry();
   void moveBigDuck();
   void moveDucks();
@@ -139,6 +139,7 @@ private:
 
   blit::Point tilePosition(blit::Point &);
   blit::Point tilePosition(int, int);
+  blit::Point upstreamPosition(const blit::Point &);
 
   GameState state = GameState::HOW_MANY;
 
@@ -146,12 +147,9 @@ private:
   blit::Size screenSize;
 
 
-  // Uodate timing
-  uint32_t lastTime;
-
   // input
-  uint16_t buttonsDown;
-  uint16_t newDown;
+  uint8_t buttonsDown;
+  uint8_t newDown;
 
   // Level info
   bool hasLift;
@@ -164,6 +162,7 @@ private:
 
   // state
   bool isDead;
+  uint8_t startLevel;
   uint8_t currentLevel;
   uint8_t numPlayers = 1;
   uint8_t activePlayers;

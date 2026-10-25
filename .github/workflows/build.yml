@@ -159,6 +159,14 @@ jobs:
       run: |
         cmake --build . --config $BUILD_TYPE -j 2
 
+    - name: Trace diff against the original
+      if: matrix.name == 'Linux'
+      working-directory: ${{github.workspace}}/main
+      shell: bash
+      env:
+        PARITY_CMAKE_ARGS: -D32BLIT_DIR=${{github.workspace}}/32blit-sdk -DPython_EXECUTABLE=${{steps.python.outputs.python-path}}
+      run: tools/parity/run.sh --all
+
     # When it's a release, generate tar/zip files of the build
     - name: Package Release
       if: github.event_name == 'release' && matrix.release-suffix != ''

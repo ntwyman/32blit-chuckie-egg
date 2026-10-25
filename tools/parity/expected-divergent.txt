@@ -1,0 +1,6 @@
+# Scripts whose traces diverge today, one name per line. A listed script that
+# passes fails run.sh, so this list only shrinks.
+idle
+jump-left
+long-play
+walk-right

@@ -108,13 +108,36 @@ window_up() {
   xdotool search --onlyvisible --name 'Chuckie Egg' >/dev/null 2>&1
 }
 
+build_level() {
+  local level="$1" dir="$ROOT/build.sdl-level$1"
+  mkdir -p "$STATE"
+  echo "start: building $dir with CHUCKIE_START_LEVEL=$level" >&2
+  if ! { cmake -B "$dir" -S "$ROOT" -DCHUCKIE_START_LEVEL="$level" && cmake --build "$dir" -j; } >"$STATE/build.log" 2>&1; then
+    keep_logs
+    die "the level $level build failed, see $STATE/build.log"
+  fi
+  BIN="$dir/chuckie-egg"
+}
+
 cmd_start() {
+  if [ $# -gt 0 ]; then
+    [ $# -eq 2 ] && [ "$1" = --level ] || {
+      echo "usage: drive.sh start [--level <n>]" >&2
+      exit 2
+    }
+    [[ "$2" =~ ^[1-9][0-9]{0,2}$ ]] && [ "$2" -le 256 ] || {
+      echo "drive.sh: --level must be a whole number from 1 to 256, got '$2'" >&2
+      exit 2
+    }
+    [ -z "${LIVE_BIN:-}" ] || die "start --level builds its own binary, so unset LIVE_BIN"
+  fi
   need Xvfb xdotool
-  [ -x "$BIN" ] || die "no game binary at $BIN; build it with: cmake -B build.sdl && cmake --build build.sdl -j"
   if game_running; then
     echo "start: game already running (pid $(pid_of "$STATE/game.pid"), display $DISPLAY)"
     return 0
   fi
+  [ $# -eq 0 ] || build_level "$2"
+  [ -x "$BIN" ] || die "no game binary at $BIN; build it with: cmake -B build.sdl && cmake --build build.sdl -j"
   mkdir -p "$STATE"
   rm -f "$STATE/failed"
   if ! display_up; then
@@ -458,7 +481,7 @@ main() {
     smoke) cmd_smoke "$@" ;;
     golden) cmd_golden "$@" ;;
     *)
-      echo "usage: drive.sh start | keys <script> | shot <path> | record <seconds> <path> | stop | smoke | golden <path>" >&2
+      echo "usage: drive.sh start [--level <n>] | keys <script> | shot <path> | record <seconds> <path> | stop | smoke | golden <path>" >&2
       exit 2
       ;;
   esac

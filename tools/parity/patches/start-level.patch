@@ -1,0 +1,20 @@
+--- a/chuckie.c
++++ b/chuckie.c
+@@ -1074,6 +1074,8 @@
+   /* Play tune 0x2f7c */
+ }
+ 
++extern int parity_start_level;
++
+ static void start_game(void)
+ {
+   int i, j;
+@@ -1081,7 +1083,7 @@
+   for (i = 3; i >= 0; i--) {
+       current_player = i;
+       player_data->lives = 5;
+-      level[i] = 0;
++      level[i] = current_level = parity_start_level;
+       for (j = 0; j < 8; j++) {
+ 	  player_data->score[j] = 0;
+       }
