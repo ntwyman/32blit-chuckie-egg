@@ -290,8 +290,8 @@ t_terminated_keys_release_the_held_key() {
 
 t_numbers_parse_as_decimal() {
   local out
-  [ "$(LIVE_LANE=08 "$DRIVE" stop 2>&1)" = "stop: nothing running" ] || return 1
-  [ "$(LIVE_LANE=010 bash -c 'source "$1"; echo "$DISPLAY"' _ "$DRIVE")" = ":109" ] || return 1
+  [ "$(LIVE_LANE=0$LANE_BASE bash -c 'source "$1"; echo "$LANE"' _ "$DRIVE")" = "$LANE_BASE" ] || return 1
+  [ "$(LIVE_LANE=0$LANE_BASE bash -c 'source "$1"; echo "$DISPLAY"' _ "$DRIVE")" = ":$((99 + LANE_BASE))" ] || return 1
   [ "$(LIVE_WINDOW_WAIT=08 bash -c 'source "$1"; echo "$WINDOW_WAIT"' _ "$DRIVE")" = 8 ] || return 1
   out="$(LIVE_LANE=00000000000000000000000 "$DRIVE" stop 2>&1)"
   [ $? != 0 ] && [[ "$out" == *"LIVE_LANE must be"* ]] || return 1
