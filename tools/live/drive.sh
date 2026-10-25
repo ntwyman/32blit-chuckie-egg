@@ -129,14 +129,15 @@ cmd_start() {
     Xvfb "$DISPLAY" -screen 0 "$SCREEN" >"$STATE/xvfb.log" 2>&1 &
     record_pid "$STATE/xvfb.pid" $!
     local i
-    for i in $(seq 1 50); do
+    for i in $(seq 1 $((WINDOW_WAIT * 10))); do
       display_up && break
+      pid_alive "$STATE/xvfb.pid" || break
       sleep 0.1
     done
     if ! display_up; then
       keep_logs
       stop_procs || true
-      die "Xvfb did not come up on $DISPLAY, see $STATE/xvfb.log"
+      die "Xvfb did not answer on $DISPLAY within ${WINDOW_WAIT}s, see $STATE/xvfb.log"
     fi
   fi
   "$BIN" >"$STATE/game.log" 2>&1 &

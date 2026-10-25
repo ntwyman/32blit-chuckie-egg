@@ -85,7 +85,7 @@ To regenerate the golden image after a deliberate change to the first frame of l
 | `LIVE_STATE` | `/tmp/chuckie-live-<display>` | Pid files, logs, and recordings. |
 | `LIVE_OUT_DIR` | `tools/live/out/lane<n>` | Where `smoke` writes `smoke.png`. |
 | `LIVE_SMOKE_ATTEMPTS` | `5` | How many runs `smoke` tries when a run itself fails. |
-| `LIVE_WINDOW_WAIT` | `10` | Seconds `start` waits for the game window before it fails. |
+| `LIVE_WINDOW_WAIT` | `10` | Seconds `start` waits for `Xvfb` to answer, and again for the game window, before it fails. A busy CI runner can take several seconds to start `Xvfb` when two lanes start together. |
 
 `LIVE_LANE`, `LIVE_DISPLAY`, `LIVE_SMOKE_ATTEMPTS`, and `LIVE_WINDOW_WAIT` must be whole numbers.
 
