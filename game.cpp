@@ -240,7 +240,7 @@ void Game::renderBackground(Surface &s) {
 
     //  Cage
     const Sprite &cageSprite = this->hasBigDuck ? SpriteCageOpen : SpriteCage;
-    s.sprite(cageSprite, Point(X_OFFSET, 20));
+    s.sprite(cageSprite, this->screenPosition(0, 0xdc));
 }
 
 void Game::renderDucks(Surface &s) {
