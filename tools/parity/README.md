@@ -38,7 +38,7 @@ level 1
 ```
 
 - `level <n>` names the level, as the HUD numbers it, from 1 to 256. It is optional, must come first, and defaults to 1.
-- `<frames> <keys>` holds the keys for that many frames. `-` or no keys means no buttons. Keys are `right`, `left`, `down`, `up`, and `jump`, joined with `+`.
+- `<frames> <keys>` holds the keys for that many frames. `-` or no keys means no buttons. Keys are `right`, `left`, `down`, `up`, and `jump`, joined with `+`.  A leading, trailing, or doubled `+` is an error.
 - Frame 0 must not hold `jump`. The port enters the level on an A press, so a jump held into frame 0 is no new press there, while the original jumps. That difference would come from the driver, not the game.
 
 ## The drivers

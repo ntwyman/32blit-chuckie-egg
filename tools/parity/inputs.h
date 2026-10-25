@@ -47,19 +47,29 @@ static inline int inputs_key(const char *name) {
   return -1;
 }
 
-static inline int inputs_buttons(char *keys) {
+static inline int inputs_buttons(const char *text) {
   int buttons = 0;
-  if (strcmp(keys, "-") == 0) {
+  char keys[256];
+  if (strcmp(text, "-") == 0) {
     return 0;
   }
-  for (char *key = strtok(keys, "+"); key != NULL; key = strtok(NULL, "+")) {
-    int bit = inputs_key(key);
+  snprintf(keys, sizeof keys, "%s", text);
+  for (char *key = keys;;) {
+    char *plus = strchr(key, '+');
+    int bit;
+    if (plus != NULL) {
+      *plus = '\0';
+    }
+    bit = inputs_key(key);
     if (bit < 0) {
       return -1;
     }
     buttons |= bit;
+    if (plus == NULL) {
+      return buttons;
+    }
+    key = plus + 1;
   }
-  return buttons;
 }
 
 static inline Inputs inputs_read(const char *path) {
