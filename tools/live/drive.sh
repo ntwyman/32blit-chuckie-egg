@@ -308,9 +308,9 @@ install_cleanup() {
       exit_cmd="$3"
     fi
   fi
-  trap "$cleanup; $exit_cmd" EXIT
-  trap "$cleanup; trap - INT TERM EXIT; $RESTORE_TRAPS; kill -s INT \$BASHPID" INT
-  trap "$cleanup; trap - INT TERM EXIT; $RESTORE_TRAPS; kill -s TERM \$BASHPID" TERM
+  trap "exit_status=\$?; set +e; $cleanup; (exit \$exit_status); $exit_cmd" EXIT
+  trap "$cleanup; trap - INT TERM EXIT; eval \"\$RESTORE_TRAPS\"; kill -s INT \$BASHPID" INT
+  trap "$cleanup; trap - INT TERM EXIT; eval \"\$RESTORE_TRAPS\"; kill -s TERM \$BASHPID" TERM
 }
 
 restore_traps() {

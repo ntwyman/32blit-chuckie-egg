@@ -406,18 +406,31 @@ t_game_log_shows_debugf_while_running() {
 }
 
 t_cancelled_record_stops_its_recorder() {
-  local lane=$((LANE_BASE + 3)) state signal rec ok=0
+  local lane=$((LANE_BASE + 3)) state signal rec rc want i ok=0
   state="$(lane_state $lane)"
   LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
   for signal in TERM INT; do
-    LIVE_LANE=$lane "$DRIVE" record 30 "$TMP/cancel.mp4" 2>/dev/null &
+    [ "$signal" = TERM ] && want=143 || want=130
+    LIVE_LANE=$lane python3 -I -c 'import os, signal, sys
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+os.execv(sys.argv[1], sys.argv[1:])' "$DRIVE" record 30 "$TMP/cancel.mp4" 2>/dev/null &
     rec=$!
-    for _ in $(seq 1 50); do
+    for i in $(seq 1 50); do
       [ "$(recorder_count $lane)" -ge 1 ] && break
       sleep 0.1
     done
     kill "-$signal" "$rec"
+    for i in $(seq 1 50); do
+      kill -0 "$rec" 2>/dev/null || break
+      sleep 0.1
+    done
+    if kill -0 "$rec" 2>/dev/null; then
+      ok=1
+      kill -KILL "$rec" 2>/dev/null
+    fi
     wait "$rec" 2>/dev/null
+    rc=$?
+    [ "$rc" = "$want" ] || ok=1
     sleep 0.5
     [ "$(recorder_count $lane)" = 0 ] && [ ! -e "$state/record.pid" ] || ok=1
     pkill -f "ffmpeg.* -i :$((99 + lane)) " 2>/dev/null
@@ -472,6 +485,18 @@ t_aborted_keys_run_the_callers_exit_trap() {
   [ -e "$TMP/abort-trap-fired" ]
 }
 
+t_aborted_keys_keep_the_failing_exit_status() {
+  printf 'z 100\n' >"$TMP/status.keys"
+  bash -c '
+    source "$1"
+    game_running() { return 0; }
+    xdotool() { [ "$1" != keydown ]; }
+    trap "s=\$?; touch \"$2\"; exit \$s" EXIT
+    cmd_keys "$3"
+  ' _ "$DRIVE" "$TMP/status-trap-fired" "$TMP/status.keys" 2>/dev/null
+  [ $? != 0 ] && [ -e "$TMP/status-trap-fired" ]
+}
+
 t_start_keeps_xvfb_from_resetting() {
   local lane=$((LANE_BASE + 3)) rc=0
   LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
@@ -510,6 +535,7 @@ check "fix: a cancelled record stops its recorder and removes record.pid" t_canc
 check "fix: a second record on a lane with a live record.pid is rejected" t_overlapping_record_is_rejected
 check "fix: record leaves the caller's traps alone" t_record_leaves_the_callers_traps_alone
 check "fix: an aborted keys run still runs the caller's EXIT trap" t_aborted_keys_run_the_callers_exit_trap
+check "fix: an aborted keys run keeps its failing exit status through the caller's EXIT trap" t_aborted_keys_keep_the_failing_exit_status
 check "ce-3: start --level rejects bad values" t_start_level_rejects_bad_values
 check "ce-3: start --level refuses a running game" t_start_level_refuses_a_running_game
 check "ce-3: start --level refuses LIVE_BIN" t_start_level_refuses_live_bin
