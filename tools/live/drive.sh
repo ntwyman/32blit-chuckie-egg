@@ -11,25 +11,25 @@ die() {
   exit 1
 }
 
-uint_var() {
-  [[ "$2" =~ ^[0-9]+$ ]] || die "$1 must be a non-negative integer, got '$2'"
+bounded_var() {
+  local name="$1" value="$2" max="$3"
+  if ! [[ "$value" =~ ^[0-9]{1,9}$ ]] || [ "$((10#$value))" -gt "$max" ]; then
+    die "$name must be a whole number from 0 to $max, got '$value'"
+  fi
+  echo "$((10#$value))"
 }
 
-LANE="${LIVE_LANE:-0}"
-uint_var LIVE_LANE "$LANE"
-DISPLAY_NUM="${LIVE_DISPLAY:-$((99 + LANE))}"
-uint_var LIVE_DISPLAY "$DISPLAY_NUM"
+LANE="$(bounded_var LIVE_LANE "${LIVE_LANE:-0}" 899)"
+DISPLAY_NUM="$(bounded_var LIVE_DISPLAY "${LIVE_DISPLAY:-$((99 + LANE))}" 65535)"
 SCREEN="${LIVE_SCREEN:-640x480x24}"
 BIN="${LIVE_BIN:-$ROOT/build.sdl/chuckie-egg}"
 STATE="${LIVE_STATE:-${TMPDIR:-/tmp}/chuckie-live-$DISPLAY_NUM}"
 OUT_DIR="${LIVE_OUT_DIR:-$LIVE/out/lane$LANE}"
 GOLDEN="${LIVE_GOLDEN:-$LIVE/golden/level1-start.png}"
-SMOKE_ATTEMPTS="${LIVE_SMOKE_ATTEMPTS:-5}"
-uint_var LIVE_SMOKE_ATTEMPTS "$SMOKE_ATTEMPTS"
-WINDOW_WAIT="${LIVE_WINDOW_WAIT:-10}"
-uint_var LIVE_WINDOW_WAIT "$WINDOW_WAIT"
+SMOKE_ATTEMPTS="$(bounded_var LIVE_SMOKE_ATTEMPTS "${LIVE_SMOKE_ATTEMPTS:-5}" 1000)"
+WINDOW_WAIT="$(bounded_var LIVE_WINDOW_WAIT "${LIVE_WINDOW_WAIT:-10}" 3600)"
 SMOKE_FPS=100
-SMOKE_SCREEN=640x480
+SMOKE_SCREEN=640x480x24
 
 export DISPLAY=":$DISPLAY_NUM"
 export SDL_AUDIODRIVER=dummy
@@ -121,7 +121,7 @@ cmd_start() {
     local lock="/tmp/.X${DISPLAY_NUM}-lock" holder=""
     if [ -f "$lock" ]; then
       holder="$(tr -d ' \n' <"$lock" 2>/dev/null || true)"
-      if [[ "$holder" =~ ^[0-9]+$ ]] && kill -0 "$holder" 2>/dev/null; then
+      if [[ "$holder" =~ ^[0-9]+$ ]] && [ -d "/proc/$holder" ]; then
         die "display $DISPLAY is held by pid $holder but does not answer; stop that process or set LIVE_LANE"
       fi
       rm -f "$lock"
@@ -327,7 +327,7 @@ frame_png() {
 }
 
 need_smoke_screen() {
-  [ "${SCREEN%x*}" = "$SMOKE_SCREEN" ] || die "smoke and golden need an exact $SMOKE_SCREEN screen, got LIVE_SCREEN=$SCREEN"
+  [ "$SCREEN" = "$SMOKE_SCREEN" ] || die "smoke and golden need LIVE_SCREEN=$SMOKE_SCREEN exactly, got LIVE_SCREEN=$SCREEN"
 }
 
 smoke_attempt() {
@@ -382,7 +382,11 @@ cmd_smoke() {
       echo "smoke: FAILED, $diff pixels differ from the golden image; frame: $OUT_DIR/smoke.png, game log: $STATE/game.log" >&2
       return 1
     fi
-    echo "smoke: attempt $attempt of $SMOKE_ATTEMPTS: run failed, retrying: $(tr '\n' ' ' <"$why")" >&2
+    if [ "$attempt" -lt "$SMOKE_ATTEMPTS" ]; then
+      echo "smoke: attempt $attempt of $SMOKE_ATTEMPTS: run failed, retrying: $(tr '\n' ' ' <"$why")" >&2
+    else
+      echo "smoke: attempt $attempt of $SMOKE_ATTEMPTS: run failed, no attempts remain: $(tr '\n' ' ' <"$why")" >&2
+    fi
   done
   keep_logs
   cp -f "$STATE/game.log" "$OUT_DIR/game.log" 2>/dev/null || true
@@ -390,11 +394,19 @@ cmd_smoke() {
   return 1
 }
 
+golden_exit() {
+  if [ "$1" != 0 ]; then
+    mkdir -p "$STATE"
+    keep_logs
+  fi
+  cmd_stop >/dev/null
+}
+
 cmd_golden() {
   [ $# -eq 1 ] || die "usage: drive.sh golden <path>"
   need Xvfb xdotool ffmpeg
   need_smoke_screen
-  trap 'cmd_stop >/dev/null' EXIT
+  trap 'golden_exit $?' EXIT
   trap 'exit 130' INT
   trap 'exit 143' TERM
   local video="$STATE/golden.mkv" hashes frames
