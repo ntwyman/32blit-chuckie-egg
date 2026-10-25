@@ -279,10 +279,13 @@ cmd_keys() {
   steps="$(parse_keys "$file")" || exit 2
   [ -n "$steps" ] || return 0
   game_running || die "game is not running, run: drive.sh start"
-  saved="$(trap -p INT TERM EXIT)"
+  saved=""
+  if [ "$BASHPID" = "$$" ]; then
+    saved="$(trap -p INT TERM EXIT)"
+  fi
   trap 'release_held' EXIT
-  trap 'release_held; trap - INT TERM EXIT; eval "$saved"; kill -s INT $$' INT
-  trap 'release_held; trap - INT TERM EXIT; eval "$saved"; kill -s TERM $$' TERM
+  trap 'release_held; trap - INT TERM EXIT; eval "$saved"; kill -s INT $BASHPID' INT
+  trap 'release_held; trap - INT TERM EXIT; eval "$saved"; kill -s TERM $BASHPID' TERM
   while read -r key ms; do
     if [ "$key" = wait ]; then
       ms_sleep "$ms"

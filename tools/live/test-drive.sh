@@ -288,6 +288,18 @@ t_terminated_keys_release_the_held_key() {
   [ "$held" = 1 ] && [ "$after" = 0 ]
 }
 
+t_keys_in_a_subshell_leave_the_callers_exit_trap_alone() {
+  printf 'wait 10\n' >"$TMP/wait.keys"
+  bash -c '
+    source "$1"
+    game_running() { return 0; }
+    trap "touch \"$2\"" EXIT
+    (cmd_keys "$3")
+    trap - EXIT
+    [ ! -e "$2" ]
+  ' _ "$DRIVE" "$TMP/trap-fired" "$TMP/wait.keys"
+}
+
 t_numbers_parse_as_decimal() {
   local out
   [ "$(LIVE_LANE=0$LANE_BASE bash -c 'source "$1"; echo "$LANE"' _ "$DRIVE")" = "$LANE_BASE" ] || return 1
@@ -396,6 +408,7 @@ check "item 9: a failed smoke leaves the frame and game.log" t_failed_smoke_leav
 check "item 1: README has no stale heap garbage note" t_readme_has_no_stale_heap_garbage_note
 check "item 4: the last attempt says no attempts remain" t_last_attempt_does_not_say_retrying
 check "item 2: a terminated keys run releases the held key" t_terminated_keys_release_the_held_key
+check "item 3: keys in a subshell leave the caller's EXIT trap alone" t_keys_in_a_subshell_leave_the_callers_exit_trap_alone
 check "item 5: numbers parse as decimal and are bounded" t_numbers_parse_as_decimal
 check "item 6: start spares a lock held by another user" t_start_spares_a_lock_held_by_another_user
 check "item 7: smoke needs exactly 640x480x24" t_smoke_needs_the_exact_screen
