@@ -42,13 +42,14 @@ static uint8_t readButtons() {
 }
 
 void update(uint32_t time) {
-  uint32_t steps = frame_clock.due(time);
+  // After a stall the engine replays updates with stamped times, so only now() shows the backlog.
+  uint32_t steps = frame_clock.due(now());
   for (uint32_t i = 0; i < steps; i++) {
     game.Step(readButtons());
   }
   if (steps > 0) {
     step_count += steps;
-    debugf("Step %u: ran %u at %u ms\r\n", step_count, steps, time);
+    debugf("Step %u: ran %u at %u ms\r\n", step_count, steps, now());
   }
 }
 
