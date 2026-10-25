@@ -32,11 +32,14 @@ bool Game::isTileWall(int x, int y) {
 }
 
 
+Game::Game(unsigned int hudLevel) : startLevel(hudLevel - 1) {}
+
 void Game::startGame() {
     this->activePlayers = this->numPlayers;
     for (int i=0; i< this->numPlayers; i++) {
         memset(&this->playerData[i], 0, sizeof(Player));
         this->playerData[i].lives = 5;
+        this->playerData[i].level = this->startLevel;
     }
     this->currentLevel = 0;
     this->currentPlayer = 0;
@@ -343,37 +346,6 @@ char const *stateToString(HenryState state) {
     }
     return pS;
 }
-void Game::pollKeys() {
-
-    Henry &h = this->henry;
-    if (h.state != h.priorState) {
-        debugf("State change: %s\r\n", stateToString(h.state));
-        h.priorState = h.state;
-    }
-
-    uint16_t down = 0;
-    if (pressed(Button::DPAD_LEFT) || joystick.x < -0.1f) {
-        down |= BUTTON_LEFT;
-    }
-    if (pressed(Button::DPAD_RIGHT) || joystick.x > 0.1f) {
-        down &= ~BUTTON_LEFT;
-        down |= BUTTON_RIGHT;
-    }
-    if (pressed(Button::DPAD_UP) || joystick.y < -0.1f) {
-        down |= BUTTON_UP;
-    }
-    if (pressed(Button::DPAD_DOWN) || joystick.y > 0.1f) {
-        down &= ~BUTTON_UP;
-        down |= BUTTON_DOWN;
-    }
-    if (pressed(Button::A | Button::JOYSTICK)) {
-        down |= BUTTON_A;
-    }
-    uint16_t changed = this->buttonsDown ^ down;
-    this->newDown = changed & down;
-    this->buttonsDown = down;
-}
-
 void Game::moveHenry() {
     Henry &h = this->henry;
     uint16_t down = this->buttonsDown;
@@ -979,20 +951,15 @@ void Game::SetScreenSize(blit::Size &size) {
     this->screenSize = size;
 }
 
-void Game::Tickle(uint32_t time)
-/*
-The Update tick - runs roughly every 10 ms
-*/
-{
-
-    if (this->lastTime == 0) {
-        this->lastTime = time;
+void Game::Step(uint8_t buttons) {
+    Henry &h = this->henry;
+    if (h.state != h.priorState) {
+        debugf("State change: %s\r\n", stateToString(h.state));
+        h.priorState = h.state;
     }
-    if ((time - this->lastTime) < UPDATE_INTERVAL_MS) {
-        return;
-    }
+    this->newDown = (this->buttonsDown ^ buttons) & buttons;
+    this->buttonsDown = buttons;
 
-    this->pollKeys();
     switch (this->state) {
         case GameState::HOW_MANY:
             if ((this->newDown & BUTTON_UP) && (this->numPlayers < MAX_PLAYERS)) {
@@ -1012,10 +979,6 @@ The Update tick - runs roughly every 10 ms
             }
             break;
         case GameState::GAME_OVER:
-            if (this->newDown & BUTTON_A) {
-
-                
-            }
             break;
         case GameState::LEVEL:
             this->moveHenry();
@@ -1034,28 +997,55 @@ The Update tick - runs roughly every 10 ms
                 }
             }
             break;
-        }
-        //        /* Level complete */
-//        while (!zero_bonus) {
-//            AddScore(6, 1);
-//            ReduceBonus();
-//            MaybeAddExtraLife();
-//            tmp = timer_ticks[3];
-//            if (tmp == 0 || tmp == 5) {
-//                /* sound(0xcb0) - 0010 0001 0004 0001 */
-//            }
-//            /* Render Screen? */
-//        }
-//        /* Advance to next level */
-//        cheat = 0;
-//        zero_bonus = 0;
-//        current_level++;
-//        SavePlayerState();
-//        ResetPlayer();
-//        RestorePlayerState();
-//        goto next_level;
-//
     }
+}
+
+#ifdef CHUCKIE_PARITY
+// The inverse of tilePosition for any screen point, in upstream's units.
+// Upstream measures y up from the bottom and anchors tile (x, y) at pixel
+// (x * 8, y * 8 + 7) (raster_4bit.c), so the bottom row is y 0.
+Point Game::upstreamPosition(const Point &p) {
+    return Point(p.x - X_OFFSET, this->screenSize.h - 1 - p.y);
+}
+
+static_assert(TRACE_MAX_HENS >= MAX_DUCKS, "FrameTrace must hold every hen");
+
+FrameTrace Game::Snapshot() {
+    FrameTrace t = {};
+    const Henry &h = this->henry;
+    Point henryPos = this->upstreamPosition(h.pos);
+    t.henry_x = henryPos.x;
+    t.henry_y = henryPos.y;
+    t.henry_tile_x = h.tile.x;
+    t.henry_tile_y = h.tile.y;
+    t.henry_partial_x = h.partial.x;
+    t.henry_partial_y = h.partial.y;
+    t.henry_mode = h.state;
+    t.dead = this->state == GameState::GAME_OVER;
+    t.score = this->score;
+    t.lives = this->playerData[this->currentPlayer].lives;
+    t.bonus = this->bonus;
+    t.timer = this->timer;
+    t.has_lift = this->hasLift;
+    if (this->hasLift) {
+        Point lift0 = this->upstreamPosition(Point(this->liftX, this->liftY[0]));
+        Point lift1 = this->upstreamPosition(Point(this->liftX, this->liftY[1]));
+        t.lift_x = lift0.x;
+        t.lift_y[0] = lift0.y;
+        t.lift_y[1] = lift1.y;
+    }
+    t.duck_timer = this->duckTimer;
+    t.current_duck = this->currentDuck;
+    t.hens = this->numDucks;
+    for (int i = 0; i < this->numDucks; i++) {
+        Point pos = this->upstreamPosition(this->ducks[i].pos);
+        t.hen[i].x = pos.x;
+        t.hen[i].y = pos.y;
+        t.hen[i].mode = this->ducks[i].state;
+    }
+    return t;
+}
+#endif
 
 void Game::Render(Surface &s) {
     /*

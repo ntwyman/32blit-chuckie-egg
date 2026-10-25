@@ -12,13 +12,16 @@
 | Command | What it does |
 | --- | --- |
 | `drive.sh start` | Starts `Xvfb` and the game. If the game already runs, it says so and does nothing. |
+| `drive.sh start --level <n>` | Builds the SDL target in `build.sdl-level<n>` with `-DCHUCKIE_START_LEVEL=<n>`, then starts it, so a new game starts on level `<n>` (1 to 256, as the HUD numbers it). It refuses `LIVE_BIN`. The build log is `$LIVE_STATE/build.log`. |
 | `drive.sh keys <script>` | Sends a key script. A `<script>` with a `/` is a path. A bare name is looked up in `tools/live/scripts/` (as given, then with `.keys`) and only then in the current directory. Use `./name.keys` for a file in the current directory. An empty script does nothing and exits zero. |
 | `drive.sh shot <path>` | Saves a screenshot of the display as a PNG. |
 | `drive.sh record <seconds> <path>` | Records the display as an MP4 for that long. It blocks, so run it in the background while a key script plays. |
 | `drive.sh stop` | Stops the game and `Xvfb`. It exits zero when nothing runs. |
 | `drive.sh smoke` | Starts a fresh game, starts one player, and compares the first frame of level 1 with `golden/level1-start.png`. It prints `smoke: ok` and writes `out/lane<n>/smoke.png`. |
 
-The game's `debugf` output goes to `$LIVE_STATE/game.log`, where `LIVE_STATE` defaults to `/tmp/chuckie-live-<display>`.
+The game's `debugf` output goes to `$LIVE_STATE/game.log`, where `LIVE_STATE` defaults to `/tmp/chuckie-live-<display>`. `start` runs the game under `stdbuf -oL`, so each line reaches `game.log` as the game writes it, not when the game exits.
+
+The game sometimes never opens its window under heavy CPU contention (about 5 starts in 100 with two lanes pinned to one CPU): `start` then fails with "no game window", and waiting longer does not help. The debugf check in `test-drive.sh` retries `start`.
 
 ## Display size
 

@@ -4,12 +4,12 @@
 
 #pragma once
 #include "32blit.hpp"
+#ifdef CHUCKIE_PARITY
+#include "tools/parity/trace.h"
+#endif
 #include <cstdint>
 
 enum GameState {HOW_MANY, READY_PLAYER, LEVEL, GAME_OVER};
-
-// Game frame rate was 3/100ths of a second
-#define UPDATE_INTERVAL_MS 60
 
 #define ROWS 25
 #define COLUMNS 20
@@ -93,9 +93,13 @@ struct BigDuck {
 
 class Game {
 public:
+  explicit Game(unsigned int hudLevel);
   void SetScreenSize(blit::Size &);
   void Render(blit::Surface &);
-  void Tickle(uint32_t);
+  void Step(uint8_t buttons);
+#ifdef CHUCKIE_PARITY
+  FrameTrace Snapshot();
+#endif
 
 private:
   unsigned int getTile(int x, int y);
@@ -114,7 +118,6 @@ private:
   void renderHenry(blit::Surface &);
   void renderLifts(blit::Surface &);
   void renderBigBird(blit::Surface &);
-  void pollKeys();
   void moveHenry();
   void moveBigDuck();
   void moveDucks();
@@ -139,49 +142,50 @@ private:
 
   blit::Point tilePosition(blit::Point &);
   blit::Point tilePosition(int, int);
+#ifdef CHUCKIE_PARITY
+  blit::Point upstreamPosition(const blit::Point &);
+#endif
 
   GameState state = GameState::HOW_MANY;
 
   // Screen
-  blit::Size screenSize;
+  blit::Size screenSize{};
 
-
-  // Uodate timing
-  uint32_t lastTime;
 
   // input
-  uint16_t buttonsDown;
-  uint16_t newDown;
+  uint8_t buttonsDown{};
+  uint8_t newDown{};
 
   // Level info
-  bool hasLift;
-  uint16_t numGrain;
-  uint16_t numDucks;
-  uint16_t liftX;
-  uint16_t liftY[2];
-  uint16_t currentLift;
-  bool hasBigDuck;
+  bool hasLift{};
+  uint16_t numGrain{};
+  uint16_t numDucks{};
+  uint16_t liftX{};
+  uint16_t liftY[2]{};
+  uint16_t currentLift{};
+  bool hasBigDuck{};
 
   // state
-  bool isDead;
-  uint8_t currentLevel;
+  bool isDead{};
+  uint8_t startLevel{};
+  uint8_t currentLevel{};
   uint8_t numPlayers = 1;
-  uint8_t activePlayers;
-  uint8_t currentPlayer;
-  uint8_t eggsLeft;
-  uint8_t duckTimer;
-  uint8_t duckRate;
-  uint8_t pauseDuckBonus;
-  uint8_t randLow;
-  uint8_t currentDuck;
-  uint8_t tiles[ROWS * COLUMNS];
-  uint16_t timer;
-  uint16_t bonus;
-  uint32_t score;
-  uint32_t randHigh;
+  uint8_t activePlayers{};
+  uint8_t currentPlayer{};
+  uint8_t eggsLeft{};
+  uint8_t duckTimer{};
+  uint8_t duckRate{};
+  uint8_t pauseDuckBonus{};
+  uint8_t randLow{};
+  uint8_t currentDuck{};
+  uint8_t tiles[ROWS * COLUMNS]{};
+  uint16_t timer{};
+  uint16_t bonus{};
+  uint32_t score{};
+  uint32_t randHigh{};
 
-  Player playerData[MAX_PLAYERS];
-  BigDuck bigDuck;
-  Duck ducks[MAX_DUCKS];
-  Henry henry;
+  Player playerData[MAX_PLAYERS]{};
+  BigDuck bigDuck{};
+  Duck ducks[MAX_DUCKS]{};
+  Henry henry{};
 };

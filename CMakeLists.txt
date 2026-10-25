@@ -23,9 +23,57 @@ endif()
 
 find_package (32BLIT CONFIG REQUIRED PATHS ../32blit-sdk $ENV{PATH_32BLIT_SDK})
 
+set(CHUCKIE_START_LEVEL 1 CACHE STRING "The level a new game starts on, as the HUD numbers it, from 1 to 256")
+if(NOT CHUCKIE_START_LEVEL MATCHES "^[1-9][0-9]*$" OR CHUCKIE_START_LEVEL GREATER 256)
+  message(FATAL_ERROR "CHUCKIE_START_LEVEL must be a whole number from 1 to 256, got '${CHUCKIE_START_LEVEL}'")
+endif()
+if(NOT CHUCKIE_START_LEVEL EQUAL 1)
+  message(STATUS "A new game starts on level ${CHUCKIE_START_LEVEL} (CHUCKIE_START_LEVEL)")
+endif()
+
 blit_executable (${PROJECT_NAME} ${PROJECT_SOURCE})
 blit_assets_yaml (${PROJECT_NAME} assets.yml)
 blit_metadata (${PROJECT_NAME} metadata.yml)
+target_compile_definitions(${PROJECT_NAME} PRIVATE CHUCKIE_START_LEVEL=${CHUCKIE_START_LEVEL})
+
+option(CHUCKIE_PARITY "Build the host-only trace diff drivers in tools/parity" OFF)
+if(CHUCKIE_PARITY)
+  if(CMAKE_CROSSCOMPILING OR EMSCRIPTEN)
+    message(FATAL_ERROR "CHUCKIE_PARITY builds host tools; turn it off for device and web builds")
+  endif()
+  if(NOT CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    message(FATAL_ERROR "CHUCKIE_PARITY needs GCC or Clang, bash, and patch")
+  endif()
+
+  set(UPSTREAM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pbrook-chuckie-egg)
+  set(PARITY ${CMAKE_CURRENT_SOURCE_DIR}/tools/parity)
+  set(PARITY_GEN ${CMAKE_CURRENT_BINARY_DIR}/parity)
+  file(GLOB PARITY_PATCHES CONFIGURE_DEPENDS ${PARITY}/patches/*.patch)
+  list(SORT PARITY_PATCHES)
+
+  add_executable(parity-port ${PARITY}/port_driver.cpp game.cpp levels.cpp sprites.cpp)
+  target_include_directories(parity-port PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PARITY})
+  target_compile_definitions(parity-port PRIVATE CHUCKIE_PARITY)
+  target_link_libraries(parity-port BlitEngine)
+
+  add_custom_command(
+    OUTPUT ${PARITY_GEN}/chuckie.c
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${PARITY_GEN}
+    COMMAND ${PARITY}/apply-patches.sh ${UPSTREAM}/chuckie.c ${PARITY_GEN}/chuckie.c ${PARITY_PATCHES}
+    DEPENDS ${UPSTREAM}/chuckie.c ${PARITY}/apply-patches.sh ${PARITY_PATCHES}
+    COMMENT "Applying tools/parity/patches to upstream chuckie.c"
+  )
+  add_executable(parity-original ${PARITY}/original_driver.c ${UPSTREAM}/leveldata.c ${PARITY_GEN}/chuckie.c)
+  set_source_files_properties(${PARITY_GEN}/chuckie.c PROPERTIES HEADER_FILE_ONLY ON)
+  target_include_directories(parity-original PRIVATE ${PARITY_GEN} ${PARITY} ${UPSTREAM})
+  # GCC cannot see that upstream's num_ducks is at most 5 and warns on the
+  # duck[] writes in StartLevel. The upstream code stays as it is.
+  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(parity-original PRIVATE -Wno-stringop-overflow)
+  endif()
+
+  add_custom_target(parity DEPENDS parity-port parity-original)
+endif()
 
 # The SDK's web shell uses FS and IDBFS from its preRun, but newer Emscripten
 # strips them as unused unless exported; without this the page hangs on load.
