@@ -363,11 +363,12 @@ stop_record() {
 
 cmd_record() {
   [ $# -eq 2 ] || die "usage: drive.sh record <seconds> <path>"
+  local REC_LOCK_FD
   need ffmpeg flock
   display_up || die "no display $DISPLAY, run: drive.sh start"
   mkdir -p "$(dirname "$2")" "$STATE"
-  exec 9>"$STATE/record.lock"
-  flock -n 9 || die "a recording already runs on lane $LANE, run drive.sh stop first"
+  exec {REC_LOCK_FD}>"$STATE/record.lock"
+  flock -n "$REC_LOCK_FD" || die "a recording already runs on lane $LANE, run drive.sh stop first"
   ! pid_alive "$STATE/record.pid" || die "a recording already runs on lane $LANE (pid $(pid_of "$STATE/record.pid")), run drive.sh stop first"
   local rc=0
   REC_BG="${!:-}"
@@ -377,7 +378,7 @@ cmd_record() {
   record_pid "$STATE/record.pid" $!
   wait $! || rc=$?
   stop_record
-  exec 9>&-
+  exec {REC_LOCK_FD}>&-
   restore_traps
   [ "$rc" = 0 ] || [ "$rc" = 255 ]
 }

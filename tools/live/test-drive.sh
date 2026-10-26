@@ -578,6 +578,19 @@ t_refused_runs_leave_no_temp_directory() {
   [ -z "$(ls -A "$scratch")" ]
 }
 
+t_record_leaves_the_callers_descriptor_9_alone() {
+  bash -c '
+    source "$1"
+    STATE="$2"
+    display_up() { return 0; }
+    ffmpeg() { sleep 0.2; }
+    exec 9>"$3"
+    cmd_record 1 "$2/out.mp4"
+    echo still-open >&9 2>/dev/null || exit 1
+    grep -q still-open "$3"
+  ' _ "$DRIVE" "$TMP/fd9-state" "$TMP/fd9-caller"
+}
+
 t_aborted_keys_run_the_callers_exit_trap() {
   printf 'z 100\n' >"$TMP/abort.keys"
   rm -f "$TMP/abort-trap-fired"
@@ -642,6 +655,7 @@ check "fix: a second record on a lane with a live record.pid is rejected" t_over
 check "fix: two records started together leave one recorder" t_simultaneous_records_leave_one_recorder
 check "fix-3: record leaves the caller's background jobs and the game alone" t_record_leaves_the_callers_jobs_alone
 check "fix-3: a refused test run leaves no temp directory" t_refused_runs_leave_no_temp_directory
+check "fix-3: record leaves the caller's descriptor 9 alone" t_record_leaves_the_callers_descriptor_9_alone
 check "fix: record leaves the caller's traps alone" t_record_leaves_the_callers_traps_alone
 check "fix: an aborted keys run still runs the caller's EXIT trap" t_aborted_keys_run_the_callers_exit_trap
 check "fix: an aborted keys run keeps its failing exit status through the caller's EXIT trap" t_aborted_keys_keep_the_failing_exit_status
