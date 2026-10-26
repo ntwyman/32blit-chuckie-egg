@@ -172,6 +172,36 @@ t_stop_catches_a_recorder_when_term_races_its_pid_file() {
   [ "$left" = 0 ]
 }
 
+t_term_before_the_pid_file_ends_a_recorder_that_ignores_int() {
+  local lane=$((LANE_BASE + 8)) slow="$LIVE/.drive-slow-int.$$.sh" driver i start end
+  sed 's@^record_pid() {$@&\n  [ "${1##*/}" != record.pid ] || sleep 1@' "$DRIVE" >"$slow"
+  chmod +x "$slow"
+  mkdir -p "$TMP/stubbin"
+  printf '#!/bin/bash\nexec sleep 3137\n' >"$TMP/stubbin/ffmpeg"
+  chmod +x "$TMP/stubbin/ffmpeg"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || { rm -f "$slow"; return 1; }
+  PATH="$TMP/stubbin:$PATH" LIVE_LANE=$lane "$slow" record 30 "$TMP/int.mp4" 2>/dev/null &
+  driver=$!
+  for i in $(seq 1 50); do
+    pgrep -f "sleep 3137" >/dev/null && break
+    sleep 0.02
+  done
+  start=$SECONDS
+  kill -TERM "$driver"
+  for i in $(seq 1 150); do
+    kill -0 "$driver" 2>/dev/null || break
+    sleep 0.1
+  done
+  end=$((SECONDS - start))
+  kill -KILL "$driver" 2>/dev/null
+  wait "$driver" 2>/dev/null
+  sleep 0.3
+  pgrep -f "sleep 3137" >/dev/null && { pkill -KILL -f "sleep 3137"; end=999; }
+  rm -f "$slow"
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$end" -le 12 ]
+}
+
 t_tests_refuse_to_run_without_an_explicit_lane() {
   local out
   out="$(env -u LIVE_TEST_LANE "$LIVE/test-smoke.sh" 2>&1)"
@@ -628,6 +658,7 @@ check "item 6: stop kills a background record" t_stop_kills_a_background_recorde
 check "item 6: terminating smoke leaves no recorder or Xvfb" t_terminated_smoke_leaves_no_recorder
 check "item 6: stop cleans up after a killed smoke" t_stop_cleans_up_after_a_killed_smoke
 check "fix-2: a TERM before the recorder pid file is written leaves no recorder" t_stop_catches_a_recorder_when_term_races_its_pid_file
+check "fix-3: a TERM before the pid file ends a recorder that ignores INT within bounded time" t_term_before_the_pid_file_ends_a_recorder_that_ignores_int
 check "fix-2: the tests refuse to run without an explicit lane" t_tests_refuse_to_run_without_an_explicit_lane
 check "item 7: two lanes write to separate folders" t_lanes_run_side_by_side
 check "item 8: stop removes logs after a clean run" t_stop_removes_logs_after_a_clean_run

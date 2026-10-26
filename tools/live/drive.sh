@@ -356,8 +356,8 @@ stop_record() {
   [ -n "$last" ] && [ "$last" != "$REC_BG" ] || return 0
   for job in $(jobs -p); do
     [ "$job" = "$last" ] || continue
-    kill -INT "$job" 2>/dev/null || true
-    wait "$job" 2>/dev/null || true
+    record_pid "$STATE/record.pid" "$job"
+    stop_proc "$STATE/record.pid" INT || true
   done
 }
 
