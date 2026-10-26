@@ -8,8 +8,8 @@ DRIVE="${DRIVE:-$LIVE/drive.sh}"
 GOLDEN="${LIVE_GOLDEN:-$LIVE/golden/level1-start.png}"
 RUNS="${RUNS:-10}"
 SAME_AS_GOLDEN_AE=0
-TMP="$(mktemp -d)"
 LANE="${LIVE_TEST_LANE:?set LIVE_TEST_LANE to a lane you own; the test stops that lane and removes its state}"
+TMP="$(mktemp -d)"
 failures=0
 
 cleanup() {

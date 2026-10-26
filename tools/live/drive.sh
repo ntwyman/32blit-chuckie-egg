@@ -348,10 +348,14 @@ cmd_shot() {
   import -window root "$1"
 }
 
+REC_BG=""
+
 stop_record() {
-  local job
+  local last="${!:-}" job
   stop_proc "$STATE/record.pid" INT || true
+  [ -n "$last" ] && [ "$last" != "$REC_BG" ] || return 0
   for job in $(jobs -p); do
+    [ "$job" = "$last" ] || continue
     kill -INT "$job" 2>/dev/null || true
     wait "$job" 2>/dev/null || true
   done
@@ -366,6 +370,7 @@ cmd_record() {
   flock -n 9 || die "a recording already runs on lane $LANE, run drive.sh stop first"
   ! pid_alive "$STATE/record.pid" || die "a recording already runs on lane $LANE (pid $(pid_of "$STATE/record.pid")), run drive.sh stop first"
   local rc=0
+  REC_BG="${!:-}"
   install_cleanup stop_record
   ffmpeg -nostdin -loglevel error -y -f x11grab -draw_mouse 0 -framerate 30 -video_size "${SCREEN%x*}" -i "$DISPLAY" \
     -t "$1" -c:v libx264 -pix_fmt yuv420p "$2" &
