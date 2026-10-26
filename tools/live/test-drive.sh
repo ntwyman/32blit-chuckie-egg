@@ -173,17 +173,17 @@ t_stop_catches_a_recorder_when_term_races_its_pid_file() {
 }
 
 t_term_before_the_pid_file_ends_a_recorder_that_ignores_int() {
-  local lane=$((LANE_BASE + 8)) slow="$LIVE/.drive-slow-int.$$.sh" driver i start end
+  local lane=$((LANE_BASE + 8)) slow="$LIVE/.drive-slow-int.$$.sh" mark="3$$" driver i start end
   sed 's@^record_pid() {$@&\n  [ "${1##*/}" != record.pid ] || sleep 1@' "$DRIVE" >"$slow"
   chmod +x "$slow"
   mkdir -p "$TMP/stubbin"
-  printf '#!/bin/bash\nexec sleep 3137\n' >"$TMP/stubbin/ffmpeg"
+  printf '#!/bin/bash\nexec sleep %s\n' "$mark" >"$TMP/stubbin/ffmpeg"
   chmod +x "$TMP/stubbin/ffmpeg"
   LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || { rm -f "$slow"; return 1; }
   PATH="$TMP/stubbin:$PATH" LIVE_LANE=$lane "$slow" record 30 "$TMP/int.mp4" 2>/dev/null &
   driver=$!
   for i in $(seq 1 50); do
-    pgrep -f "sleep 3137" >/dev/null && break
+    pgrep -f "sleep $mark" >/dev/null && break
     sleep 0.02
   done
   start=$SECONDS
@@ -196,7 +196,7 @@ t_term_before_the_pid_file_ends_a_recorder_that_ignores_int() {
   kill -KILL "$driver" 2>/dev/null
   wait "$driver" 2>/dev/null
   sleep 0.3
-  pgrep -f "sleep 3137" >/dev/null && { pkill -KILL -f "sleep 3137"; end=999; }
+  pgrep -f "sleep $mark" >/dev/null && { pkill -KILL -f "sleep $mark"; end=999; }
   rm -f "$slow"
   LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
   [ "$end" -le 12 ]
