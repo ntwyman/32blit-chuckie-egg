@@ -1,0 +1,8 @@
+# Jump onto a lift and fall into the pit a different way, so the death comes at row 16.
+level 3
+5 -
+1 left+jump
+12 left
+1 -
+10 left
+14 -

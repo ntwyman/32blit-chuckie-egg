@@ -24,6 +24,10 @@ Point Game::screenPosition(int x, int y) {
     return Point(X_OFFSET + x, this->screenSize.h - 1 - y);
 }
 
+int Game::upstreamY(int screenY) {
+    return this->screenSize.h - 1 - screenY;
+}
+
 unsigned int Game::getTile(int x, int y) {
     if (x < 0 || x >= COLUMNS || y < 0 || y >= ROWS) {
         return 0;
@@ -97,9 +101,10 @@ void Game::loadLevel() {
     }
 
     if (this->hasLift) {
-        this->liftX = X_OFFSET + (*(p++) << 3u);
-        this->liftY[0] = 232;
-        this->liftY[1] = 142;
+        this->liftX = *(p++) << 3u;
+        this->liftY[0] = 8;
+        this->liftY[1] = 0x5a;
+        this->currentLift = 0;
     }
 
     this->eggsLeft = 0;
@@ -331,8 +336,8 @@ void Game::renderHenry(Surface &s) {
 
 void Game::renderLifts(Surface &s) {
     if (this->hasLift) {
-        s.sprite(SpriteLift, Point(this->liftX, this->liftY[0]));
-        s.sprite(SpriteLift, Point(this->liftX, this->liftY[1]));
+        s.sprite(SpriteLift, this->screenPosition(this->liftX, this->liftY[0]));
+        s.sprite(SpriteLift, this->screenPosition(this->liftX, this->liftY[1]));
     }
 }
 
@@ -439,38 +444,30 @@ bool Game::canGrabLadder(Henry &h, int16_t speedY) {
 }
 
 bool Game::henryHitLift(Henry &h) {
-//        int tmp;
-//        int y1;
-//        int y2;
-
-        if (!this->hasLift)
-            return false;
-    return !((this->liftX > h.pos.x) || (this->liftX + 10 < h.pos.x));
-/*        ????
-        y1 = player_y - 0x11;
-        y2 = player_y - 0x13 + move_y;
-        tmp = lift_y[0];
-        if (tmp > y1 || tmp < y2) {
-            tmp = lift_y[1];
-            if (tmp != y1)
-            {
-                if (tmp >= y1)
-                    return;
-                if (tmp < y2)
-                    return;
-            }
-            if (current_lift == 0)
-                tmp++;
-        } else {
-            if (current_lift != 0)
-                tmp++;
+    if (!this->hasLift)
+        return false;
+    int x = h.pos.x - X_OFFSET;
+    if (this->liftX > x || this->liftX + 10 < x)
+        return false;
+    int y = this->upstreamY(h.pos.y);
+    int y1 = y - 0x11;
+    int y2 = y - 0x13 + h.speed.y;
+    int lift = this->liftY[0];
+    if (lift > y1 || lift < y2) {
+        lift = this->liftY[1];
+        if (lift != y1) {
+            if (lift >= y1 || lift < y2)
+                return false;
         }
-        tmp -= y1;
-        move_y = tmp + 1;
-        player_fall = 0;
-        player_mode = PLAYER_LIFT;
+        if (this->currentLift == 0)
+            lift++;
+    } else if (this->currentLift != 0) {
+        lift++;
     }
-*/
+    h.speed.y = lift - y1 + 1;
+    h.falling = 0;
+    h.state = HenryState::LIFT;
+    return true;
 }
 
 void Game::jumpHenry(Henry &h) {
@@ -634,16 +631,32 @@ void Game::liftHenry(Henry &h) {
     if (this->startJump(h)) {
         return;
     }
+    int x = h.pos.x - X_OFFSET;
+    if (this->liftX > x || this->liftX + 9 < x) {
+        h.falling = 0;
+        h.sliding = 0;
+        h.state = HenryState::FALL;
+    }
+    h.speed.y = 1;
+    if (h.speed.x > 0) {
+        h.dir = DIR_R;
+    } else if (h.speed.x < 0) {
+        h.dir = DIR_L;
+    }
+    if (this->cannotMove(h)) {
+        h.speed.x = 0;
+    }
+    if (this->upstreamY(h.pos.y) >= 0xdc)
+        this->isDead = true;
 }
 
 
 void Game::moveLifts() {
     if (!this->hasLift)
         return;
-    uint16_t y = this->liftY[this->currentLift];
-    y -= 2;
-    if (y == 20)
-        y = 232;
+    int y = this->liftY[this->currentLift] + 2;
+    if (y == 0xe0)
+        y = 6;
     this->liftY[this->currentLift] = y;
     this->currentLift  = 1 - this->currentLift;
 }
@@ -895,7 +908,7 @@ bool Game::cannotMove(Henry &h) {
         } else if (partialY >= 8) {
             y++;
         }
-        if (this->isTileWall(x, y)) {
+        if (this->getTile(x, y) == TILE_WALL) {
             return true;
         }
         if (h.speed.y >= 0) {
@@ -903,7 +916,7 @@ bool Game::cannotMove(Henry &h) {
         }
         x = h.tile.x - 1;
         y++;
-        return this->isTileWall(x, y);
+        return this->getTile(x, y) == TILE_WALL;
     }
     if (h.pos.x >= X_OFFSET + 152) {
         return true;
@@ -922,15 +935,15 @@ bool Game::cannotMove(Henry &h) {
     } else if (partialY >= 8) {
         y++;
     }
-    if (this->isTileWall(x, y)) {
+    if (this->getTile(x, y) == TILE_WALL) {
         return true;
     }
-    if (h.speed.y > 0) {
+    if (h.speed.y >= 0) {
         return false;
     }
     x = h.tile.x + 1;
     y++;
-    return this->isTileWall(x, y);
+    return this->getTile(x, y) == TILE_WALL;
 }
 
 void Game::detectCollisions() {
@@ -1021,7 +1034,7 @@ void Game::Step(uint8_t buttons) {
 // Upstream measures y up from the bottom and anchors tile (x, y) at pixel
 // (x * 8, y * 8 + 7) (raster_4bit.c), so the bottom row is y 0.
 Point Game::upstreamPosition(const Point &p) {
-    return Point(p.x - X_OFFSET, this->screenSize.h - 1 - p.y);
+    return Point(p.x - X_OFFSET, this->upstreamY(p.y));
 }
 
 static_assert(TRACE_MAX_HENS >= MAX_DUCKS, "FrameTrace must hold every hen");
@@ -1044,11 +1057,9 @@ FrameTrace Game::Snapshot() {
     t.timer = this->timer;
     t.has_lift = this->hasLift;
     if (this->hasLift) {
-        Point lift0 = this->upstreamPosition(Point(this->liftX, this->liftY[0]));
-        Point lift1 = this->upstreamPosition(Point(this->liftX, this->liftY[1]));
-        t.lift_x = lift0.x;
-        t.lift_y[0] = lift0.y;
-        t.lift_y[1] = lift1.y;
+        t.lift_x = this->liftX;
+        t.lift_y[0] = this->liftY[0];
+        t.lift_y[1] = this->liftY[1];
     }
     t.duck_timer = this->duckTimer;
     t.current_duck = this->currentDuck;

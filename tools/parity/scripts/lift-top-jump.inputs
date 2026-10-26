@@ -1,0 +1,8 @@
+# Jump onto a lift, ride it to the top and jump so the arc reaches the cage row, where the fall counter restarts at 12.
+level 3
+5 -
+1 left+jump
+12 left
+165 -
+1 jump
+10 -

@@ -1,0 +1,11 @@
+# Jump against a ladder cell that also holds the floor, which does not block Henry.
+level 1
+5 -
+12 up+jump
+2 up
+8 left+jump
+8 left+up
+3 left+jump
+1 right+up
+1 right+jump
+10 down

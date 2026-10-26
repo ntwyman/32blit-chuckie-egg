@@ -137,6 +137,7 @@ private:
   blit::Point tilePosition(blit::Point &);
   blit::Point tilePosition(int, int);
   blit::Point screenPosition(int, int);
+  int upstreamY(int);
 #ifdef CHUCKIE_PARITY
   blit::Point upstreamPosition(const blit::Point &);
 #endif
@@ -157,8 +158,8 @@ private:
   bool hasLift{};
   uint16_t numGrain{};
   uint16_t numDucks{};
-  uint16_t liftX{};
-  uint16_t liftY[2]{};
+  int liftX{};
+  int liftY[2]{};
   uint16_t currentLift{};
   bool hasBigDuck{};
 
