@@ -648,24 +648,51 @@ t_start_level_refuses_a_running_game() {
   [ "$rc" = 1 ] && [[ "$out" == *"run drive.sh stop first"* ]]
 }
 
-t_held_start_press_does_not_jump() {
-  local lane=$((LANE_BASE + 4)) state log i
-  state="$(lane_state $lane)"
-  log="$state/game.log"
-  printf 'z 100\nwait 500\nz 600\n' >"$TMP/hold-start.keys"
-  printf 'z 1500\n' >"$TMP/hold-jump.keys"
-  for i in 1 2 3; do
-    LIVE_LANE=$lane LIVE_WINDOW_WAIT=8 "$DRIVE" start >/dev/null 2>&1 && break
-    LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
-    [ "$i" != 3 ] || return 1
+wait_for_steps() {
+  local log="$1" more="$2" want j
+  want=$(($(grep -ac '^Step ' "$log") + more))
+  for j in $(seq 1 50); do
+    [ "$(grep -ac '^Step ' "$log")" -ge "$want" ] && return 0
+    sleep 0.1
   done
-  LIVE_LANE=$lane "$DRIVE" keys "$TMP/hold-start.keys" >/dev/null 2>&1
-  sleep 0.3
-  local early jumps
+  return 1
+}
+
+press_until_logged() {
+  local lane="$1" hold="$2" pattern="$3" log i j
+  log="$(lane_state $lane)/game.log"
+  printf 'z %s\n' "$hold" >"$TMP/press-$hold.keys"
+  for i in 1 2 3; do
+    LIVE_LANE=$lane "$DRIVE" keys "$TMP/press-$hold.keys" >/dev/null 2>&1
+    for j in $(seq 1 20); do
+      if grep -aq "$pattern" "$log"; then
+        wait_for_steps "$log" 2
+        return 0
+      fi
+      sleep 0.1
+    done
+  done
+  return 1
+}
+
+t_held_start_press_does_not_jump() {
+  local lane=$((LANE_BASE + 4)) log i early jumps=0
+  log="$(lane_state $lane)/game.log"
+  printf 'z 1500\n' >"$TMP/hold-jump.keys"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  press_until_logged $lane 100 'Starting Game' && press_until_logged $lane 600 'Loaded level'
   early="$(sed -n '/Loaded level/,$p' "$log" | grep -c 'State change: Jump')"
   LIVE_LANE=$lane "$DRIVE" keys "$TMP/hold-jump.keys" >/dev/null 2>&1
-  sleep 0.3
-  jumps="$(grep -c 'State change: Jump' "$log")"
+  for i in $(seq 1 30); do
+    jumps="$(grep -ac 'State change: Jump' "$log")"
+    [ "$jumps" -ge 2 ] && break
+    sleep 0.1
+  done
+  if [ "$early" != 0 ] || [ "$jumps" -lt 2 ]; then
+    echo "  early=$early jumps=$jumps" >&2
+    grep -av '^Step ' "$log" | tail -20 >&2
+    grep -ac '^Step ' "$log" >&2
+  fi
   LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
   [ "$early" = 0 ] && [ "$jumps" -ge 2 ]
 }

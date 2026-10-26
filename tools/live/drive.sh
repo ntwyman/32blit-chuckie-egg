@@ -184,7 +184,20 @@ cmd_start() {
     stop_procs || true
     die "no game window on $DISPLAY after ${WINDOW_WAIT}s, see $STATE/game.log"
   fi
-  sleep 1
+  local stepping=0
+  for i in $(seq 1 $((WINDOW_WAIT * 10))); do
+    game_running || break
+    if grep -aq '^Step ' "$STATE/game.log"; then
+      stepping=1
+      break
+    fi
+    sleep 0.1
+  done
+  if [ "$stepping" = 0 ]; then
+    keep_logs
+    stop_procs || true
+    die "the game opened a window but ran no step within ${WINDOW_WAIT}s, see $STATE/game.log"
+  fi
   echo "start: game running (pid $(pid_of "$STATE/game.pid"), display $DISPLAY)"
 }
 

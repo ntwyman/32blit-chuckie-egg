@@ -11,7 +11,7 @@
 
 | Command | What it does |
 | --- | --- |
-| `drive.sh start` | Starts `Xvfb` and the game. If the game already runs, it says so and does nothing. |
+| `drive.sh start` | Starts `Xvfb` and the game, and returns once the game has logged its first step, so a key sent next reaches a game that polls input. If the game already runs, it says so and does nothing. |
 | `drive.sh start --level <n>` | Builds the SDL target in `build.sdl-level<n>` with `-DCHUCKIE_START_LEVEL=<n>`, then starts it, so a new game starts on level `<n>` (1 to 256, as the HUD numbers it). It refuses `LIVE_BIN`. The build log is `$LIVE_STATE/build.log`. |
 | `drive.sh keys <script>` | Sends a key script. A `<script>` with a `/` is a path. A bare name is looked up in `tools/live/scripts/` (as given, then with `.keys`) and only then in the current directory. Use `./name.keys` for a file in the current directory. An empty script does nothing and exits zero. |
 | `drive.sh shot <path>` | Saves a screenshot of the display as a PNG. |
@@ -91,7 +91,7 @@ To regenerate the golden image after a deliberate change to the first frame of l
 | `LIVE_STATE` | `/tmp/chuckie-live-<display>` | Pid files, logs, and recordings. |
 | `LIVE_OUT_DIR` | `tools/live/out/lane<n>` | Where `smoke` writes `smoke.png`. |
 | `LIVE_SMOKE_ATTEMPTS` | `5` | How many runs `smoke` tries when a run itself fails. |
-| `LIVE_WINDOW_WAIT` | `10` | Seconds `start` waits for `Xvfb` to answer, and again for the game window, before it fails. A busy CI runner can take several seconds to start `Xvfb` when two lanes start together. |
+| `LIVE_WINDOW_WAIT` | `10` | Seconds `start` waits for `Xvfb` to answer, for the game window, and for the game's first step, each before it fails. A busy CI runner can take several seconds to start `Xvfb` when two lanes start together. |
 
 `LIVE_LANE`, `LIVE_DISPLAY`, `LIVE_SMOKE_ATTEMPTS`, and `LIVE_WINDOW_WAIT` must be whole numbers, read as decimal (`08` is 8). `LIVE_LANE` runs from 0 to 899, `LIVE_DISPLAY` to 65535, `LIVE_SMOKE_ATTEMPTS` to 1000, and `LIVE_WINDOW_WAIT` to 3600.
 
