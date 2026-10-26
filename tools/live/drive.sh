@@ -200,7 +200,7 @@ stop_procs() {
 cmd_stop() {
   local did=0
   stop_procs && did=1
-  rm -f "$STATE"/*.mkv "$STATE"/*.err
+  rm -f "$STATE"/*.mkv "$STATE"/*.err "$STATE/record.lock"
   if [ -e "$STATE/failed" ]; then
     echo "stop: a run failed; logs are in $STATE" >&2
   else
@@ -354,9 +354,11 @@ stop_record() {
 
 cmd_record() {
   [ $# -eq 2 ] || die "usage: drive.sh record <seconds> <path>"
-  need ffmpeg
+  need ffmpeg flock
   display_up || die "no display $DISPLAY, run: drive.sh start"
   mkdir -p "$(dirname "$2")" "$STATE"
+  exec 9>"$STATE/record.lock"
+  flock -n 9 || die "a recording already runs on lane $LANE, run drive.sh stop first"
   ! pid_alive "$STATE/record.pid" || die "a recording already runs on lane $LANE (pid $(pid_of "$STATE/record.pid")), run drive.sh stop first"
   local rc=0
   install_cleanup stop_record

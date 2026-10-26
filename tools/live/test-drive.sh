@@ -458,6 +458,23 @@ t_overlapping_record_is_rejected() {
   return $ok
 }
 
+t_simultaneous_records_leave_one_recorder() {
+  local lane=$((LANE_BASE + 3)) a b ok=0
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  LIVE_LANE=$lane "$DRIVE" record 30 "$TMP/sim-a.mp4" 2>/dev/null &
+  a=$!
+  LIVE_LANE=$lane "$DRIVE" record 30 "$TMP/sim-b.mp4" 2>/dev/null &
+  b=$!
+  sleep 3
+  [ "$(recorder_count $lane)" = 1 ] || ok=1
+  kill -TERM "$a" "$b" 2>/dev/null
+  wait "$a" "$b" 2>/dev/null
+  sleep 0.5
+  [ "$(recorder_count $lane)" = 0 ] || ok=1
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  return $ok
+}
+
 t_record_leaves_the_callers_traps_alone() {
   bash -c '
     source "$1"
@@ -533,6 +550,7 @@ check "ce-3: game.log shows debugf lines while the game runs" t_game_log_shows_d
 check "fix: start runs Xvfb with -noreset so the readiness probe cannot reset it" t_start_keeps_xvfb_from_resetting
 check "fix: a cancelled record stops its recorder and removes record.pid" t_cancelled_record_stops_its_recorder
 check "fix: a second record on a lane with a live record.pid is rejected" t_overlapping_record_is_rejected
+check "fix: two records started together leave one recorder" t_simultaneous_records_leave_one_recorder
 check "fix: record leaves the caller's traps alone" t_record_leaves_the_callers_traps_alone
 check "fix: an aborted keys run still runs the caller's EXIT trap" t_aborted_keys_run_the_callers_exit_trap
 check "fix: an aborted keys run keeps its failing exit status through the caller's EXIT trap" t_aborted_keys_keep_the_failing_exit_status

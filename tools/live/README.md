@@ -5,7 +5,7 @@
 ## Prerequisites
 
 - The SDL build at `build.sdl/chuckie-egg`. Build it with `cmake -B build.sdl && cmake --build build.sdl -j`. Set `LIVE_BIN` to use another path.
-- `Xvfb`, `xdotool`, ImageMagick (`import` and `compare`), and `ffmpeg`. The dev container has them.
+- `Xvfb`, `xdotool`, `flock`, ImageMagick (`import` and `compare`), and `ffmpeg`. The dev container has them.
 
 ## Commands
 
