@@ -105,4 +105,6 @@ The pid files record each process's start time as well as its pid. `start` and `
 
 ## Tests
 
+Both scripts stop their lanes and delete their state, so they refuse to run until you name lanes you own. Set `LIVE_TEST_LANE_BASE` for `test-drive.sh`, which uses ten lanes from that base, and `LIVE_TEST_LANE` for `test-smoke.sh`, which uses one.
+
 `tools/live/test-drive.sh` checks the driver's edge cases and finishes in under a minute. `tools/live/test-smoke.sh` runs `smoke` ten times and checks that every selected frame is byte-identical and matches the golden image. It reports how far the frame position moved as information only. When a check in `test-drive.sh` fails, it leaves the lanes' frames and logs under `tools/live/out/test-drive/`. Set `DRIVE` to test another copy of `drive.sh`.

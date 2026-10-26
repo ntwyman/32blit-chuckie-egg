@@ -349,7 +349,12 @@ cmd_shot() {
 }
 
 stop_record() {
+  local job
   stop_proc "$STATE/record.pid" INT || true
+  for job in $(jobs -p); do
+    kill -INT "$job" 2>/dev/null || true
+    wait "$job" 2>/dev/null || true
+  done
 }
 
 cmd_record() {

@@ -6,7 +6,7 @@ set -uo pipefail
 LIVE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DRIVE="${DRIVE:-$LIVE/drive.sh}"
 TMP="$(mktemp -d)"
-LANE_BASE="${LIVE_TEST_LANE_BASE:-10}"
+LANE_BASE="${LIVE_TEST_LANE_BASE:?set LIVE_TEST_LANE_BASE to the first of ten lanes you own; the test stops those lanes and removes their state}"
 LANES="$(seq "$LANE_BASE" "$((LANE_BASE + 9))")"
 ARTIFACTS="${LIVE_TEST_ARTIFACTS:-$LIVE/out/test-drive}"
 failures=0
@@ -150,6 +150,34 @@ t_stop_cleans_up_after_a_killed_smoke() {
   LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
   sleep 0.5
   [ "$(recorder_count $lane)" = 0 ] && ! pgrep -f "Xvfb :$((99 + lane))" >/dev/null
+}
+
+t_stop_catches_a_recorder_when_term_races_its_pid_file() {
+  local lane=$((LANE_BASE + 8)) slow="$LIVE/.drive-slow-pid.$$.sh" driver i left
+  sed 's@^record_pid() {$@&\n  [ "${1##*/}" != record.pid ] || sleep 1@' "$DRIVE" >"$slow"
+  chmod +x "$slow"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || { rm -f "$slow"; return 1; }
+  LIVE_LANE=$lane "$slow" record 30 "$TMP/race.mp4" 2>/dev/null &
+  driver=$!
+  for i in $(seq 1 50); do
+    [ "$(recorder_count $lane)" -ge 1 ] && break
+    sleep 0.02
+  done
+  kill -TERM "$driver"
+  wait "$driver" 2>/dev/null
+  sleep 0.5
+  left="$(recorder_count $lane)"
+  rm -f "$slow"
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$left" = 0 ]
+}
+
+t_tests_refuse_to_run_without_an_explicit_lane() {
+  local out
+  out="$(env -u LIVE_TEST_LANE "$LIVE/test-smoke.sh" 2>&1)"
+  [ $? != 0 ] && [[ "$out" == *LIVE_TEST_LANE* ]] || return 1
+  out="$(env -u LIVE_TEST_LANE_BASE "$LIVE/test-drive.sh" 2>&1)"
+  [ $? != 0 ] && [[ "$out" == *LIVE_TEST_LANE_BASE* ]]
 }
 
 t_lanes_run_side_by_side() {
@@ -568,6 +596,8 @@ check "item 5: start ignores a foreign pid" t_start_ignores_a_foreign_pid
 check "item 6: stop kills a background record" t_stop_kills_a_background_recorder
 check "item 6: terminating smoke leaves no recorder or Xvfb" t_terminated_smoke_leaves_no_recorder
 check "item 6: stop cleans up after a killed smoke" t_stop_cleans_up_after_a_killed_smoke
+check "fix-2: a TERM before the recorder pid file is written leaves no recorder" t_stop_catches_a_recorder_when_term_races_its_pid_file
+check "fix-2: the tests refuse to run without an explicit lane" t_tests_refuse_to_run_without_an_explicit_lane
 check "item 7: two lanes write to separate folders" t_lanes_run_side_by_side
 check "item 8: stop removes logs after a clean run" t_stop_removes_logs_after_a_clean_run
 check "item 8: a failed start keeps logs and names them" t_failed_start_keeps_logs_and_says_where

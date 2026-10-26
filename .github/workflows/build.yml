@@ -229,6 +229,8 @@ jobs:
 
     - name: Driver tests
       working-directory: main
+      env:
+        LIVE_TEST_LANE_BASE: 10
       run: tools/live/test-drive.sh
 
     - name: Smoke test
