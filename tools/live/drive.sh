@@ -391,8 +391,8 @@ cmd_record() {
   record_pid "$STATE/record.pid" $!
   wait $! || rc=$?
   stop_record
-  exec {REC_LOCK_FD}>&-
   restore_traps
+  exec {REC_LOCK_FD}>&-
   [ "$rc" = 0 ] || [ "$rc" = 255 ]
 }
 

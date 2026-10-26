@@ -680,7 +680,12 @@ t_held_start_press_does_not_jump() {
   log="$(lane_state $lane)/game.log"
   printf 'z 1500\n' >"$TMP/hold-jump.keys"
   LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
-  press_until_logged $lane 100 'Starting Game' && press_until_logged $lane 600 'Loaded level'
+  if ! { press_until_logged $lane 100 'Starting Game' && press_until_logged $lane 600 'Loaded level'; }; then
+    echo "  a setup press never showed its effect" >&2
+    grep -av '^Step ' "$log" | tail -20 >&2
+    LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+    return 1
+  fi
   early="$(sed -n '/Loaded level/,$p' "$log" | grep -c 'State change: Jump')"
   LIVE_LANE=$lane "$DRIVE" keys "$TMP/hold-jump.keys" >/dev/null 2>&1
   for i in $(seq 1 30); do
