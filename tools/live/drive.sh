@@ -200,7 +200,7 @@ stop_procs() {
 cmd_stop() {
   local did=0
   stop_procs && did=1
-  rm -f "$STATE"/*.mkv "$STATE"/*.err "$STATE/record.lock"
+  rm -f "$STATE"/*.mkv "$STATE"/*.err
   if [ -e "$STATE/failed" ]; then
     echo "stop: a run failed; logs are in $STATE" >&2
   else
@@ -367,6 +367,7 @@ cmd_record() {
   record_pid "$STATE/record.pid" $!
   wait $! || rc=$?
   stop_record
+  exec 9>&-
   restore_traps
   [ "$rc" = 0 ] || [ "$rc" = 255 ]
 }

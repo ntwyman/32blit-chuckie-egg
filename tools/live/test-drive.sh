@@ -455,6 +455,7 @@ t_overlapping_record_is_rejected() {
   [ "$(recorder_count $lane)" = 1 ] && [ -s "$state/record.pid" ] || ok=1
   LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
   wait "$rec" 2>/dev/null
+  [ -e "$state/record.lock" ] || ok=1
   return $ok
 }
 
@@ -483,6 +484,7 @@ t_record_leaves_the_callers_traps_alone() {
     ffmpeg() { sleep 0.2; }
     trap "touch \"$3\"" EXIT
     cmd_record 1 "$2/out.mp4"
+    flock -n "$2/record.lock" true || exit 1
     [[ "$(trap -p EXIT)" == *touch* ]] || exit 1
     trap - EXIT
     [ ! -e "$3" ]
