@@ -5,23 +5,23 @@
 ## Prerequisites
 
 - The SDL build at `build.sdl/chuckie-egg`. Build it with `cmake -B build.sdl && cmake --build build.sdl -j`. Set `LIVE_BIN` to use another path.
-- `Xvfb`, `xdotool`, ImageMagick (`import` and `compare`), and `ffmpeg`. The dev container has them.
+- `Xvfb`, `xdotool`, `flock`, ImageMagick (`import` and `compare`), and `ffmpeg`. The dev container has them.
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
-| `drive.sh start` | Starts `Xvfb` and the game. If the game already runs, it says so and does nothing. |
+| `drive.sh start` | Starts `Xvfb` and the game, and returns once the game has logged its first step, so a key sent next reaches a game that polls input. If the game already runs, it says so and does nothing. |
 | `drive.sh start --level <n>` | Builds the SDL target in `build.sdl-level<n>` with `-DCHUCKIE_START_LEVEL=<n>`, then starts it, so a new game starts on level `<n>` (1 to 256, as the HUD numbers it). It refuses `LIVE_BIN`. The build log is `$LIVE_STATE/build.log`. |
 | `drive.sh keys <script>` | Sends a key script. A `<script>` with a `/` is a path. A bare name is looked up in `tools/live/scripts/` (as given, then with `.keys`) and only then in the current directory. Use `./name.keys` for a file in the current directory. An empty script does nothing and exits zero. |
 | `drive.sh shot <path>` | Saves a screenshot of the display as a PNG. |
-| `drive.sh record <seconds> <path>` | Records the display as an MP4 for that long. It blocks, so run it in the background while a key script plays. |
+| `drive.sh record <seconds> <path>` | Records the display as an MP4 for that long. It blocks, so run it in the background while a key script plays. INT or TERM stops the recorder and removes `record.pid`. A non-interactive shell starts a background `record &` with INT ignored, so cancel it with TERM. A second `record` on a lane that is already recording fails. |
 | `drive.sh stop` | Stops the game and `Xvfb`. It exits zero when nothing runs. |
 | `drive.sh smoke` | Starts a fresh game, starts one player, and compares the first frame of level 1 with `golden/level1-start.png`. It prints `smoke: ok` and writes `out/lane<n>/smoke.png`. |
 
 The game's `debugf` output goes to `$LIVE_STATE/game.log`, where `LIVE_STATE` defaults to `/tmp/chuckie-live-<display>`. `start` runs the game under `stdbuf -oL`, so each line reaches `game.log` as the game writes it, not when the game exits.
 
-The game sometimes never opens its window under heavy CPU contention (about 5 starts in 100 with two lanes pinned to one CPU): `start` then fails with "no game window", and waiting longer does not help. The debugf check in `test-drive.sh` retries `start`.
+`start` runs `Xvfb` with `-noreset`. Without it, `Xvfb` resets when the readiness probe disconnects and refuses connections for a moment. A game that connects then falls back to SDL's offscreen driver and never opens a window.
 
 ## Display size
 
@@ -91,7 +91,7 @@ To regenerate the golden image after a deliberate change to the first frame of l
 | `LIVE_STATE` | `/tmp/chuckie-live-<display>` | Pid files, logs, and recordings. |
 | `LIVE_OUT_DIR` | `tools/live/out/lane<n>` | Where `smoke` writes `smoke.png`. |
 | `LIVE_SMOKE_ATTEMPTS` | `5` | How many runs `smoke` tries when a run itself fails. |
-| `LIVE_WINDOW_WAIT` | `10` | Seconds `start` waits for `Xvfb` to answer, and again for the game window, before it fails. A busy CI runner can take several seconds to start `Xvfb` when two lanes start together. |
+| `LIVE_WINDOW_WAIT` | `10` | Seconds `start` waits for `Xvfb` to answer, for the game window, and for the game's first step, each before it fails. A busy CI runner can take several seconds to start `Xvfb` when two lanes start together. |
 
 `LIVE_LANE`, `LIVE_DISPLAY`, `LIVE_SMOKE_ATTEMPTS`, and `LIVE_WINDOW_WAIT` must be whole numbers, read as decimal (`08` is 8). `LIVE_LANE` runs from 0 to 899, `LIVE_DISPLAY` to 65535, `LIVE_SMOKE_ATTEMPTS` to 1000, and `LIVE_WINDOW_WAIT` to 3600.
 
@@ -104,5 +104,7 @@ The pid files record each process's start time as well as its pid. `start` and `
 `start` removes a stale `/tmp/.X<n>-lock` only when no live process holds it. If a live process holds the lock and the display does not answer, `start` fails and names the pid.
 
 ## Tests
+
+Both scripts stop their lanes and delete their state, so they refuse to run until you name lanes you own. Set `LIVE_TEST_LANE_BASE` for `test-drive.sh`, which uses twenty lanes, from the base to the base plus 19 (a nested run of the suite takes the second ten), and `LIVE_TEST_LANE` for `test-smoke.sh`, which uses one.
 
 `tools/live/test-drive.sh` checks the driver's edge cases and finishes in under a minute. `tools/live/test-smoke.sh` runs `smoke` ten times and checks that every selected frame is byte-identical and matches the golden image. It reports how far the frame position moved as information only. When a check in `test-drive.sh` fails, it leaves the lanes' frames and logs under `tools/live/out/test-drive/`. Set `DRIVE` to test another copy of `drive.sh`.

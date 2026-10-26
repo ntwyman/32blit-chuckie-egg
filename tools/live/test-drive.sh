@@ -5,8 +5,8 @@ set -uo pipefail
 
 LIVE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DRIVE="${DRIVE:-$LIVE/drive.sh}"
+LANE_BASE="${LIVE_TEST_LANE_BASE:?set LIVE_TEST_LANE_BASE to the first of twenty lanes you own; the test uses lanes base to base+19, stops them, and removes their state}"
 TMP="$(mktemp -d)"
-LANE_BASE="${LIVE_TEST_LANE_BASE:-10}"
 LANES="$(seq "$LANE_BASE" "$((LANE_BASE + 9))")"
 ARTIFACTS="${LIVE_TEST_ARTIFACTS:-$LIVE/out/test-drive}"
 failures=0
@@ -150,6 +150,64 @@ t_stop_cleans_up_after_a_killed_smoke() {
   LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
   sleep 0.5
   [ "$(recorder_count $lane)" = 0 ] && ! pgrep -f "Xvfb :$((99 + lane))" >/dev/null
+}
+
+t_stop_catches_a_recorder_when_term_races_its_pid_file() {
+  local lane=$((LANE_BASE + 8)) slow="$LIVE/.drive-slow-pid.$$.sh" driver i left
+  sed 's@^record_pid() {$@&\n  [ "${1##*/}" != record.pid ] || sleep 1@' "$DRIVE" >"$slow"
+  chmod +x "$slow"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || { rm -f "$slow"; return 1; }
+  LIVE_LANE=$lane "$slow" record 30 "$TMP/race.mp4" 2>/dev/null &
+  driver=$!
+  for i in $(seq 1 50); do
+    [ "$(recorder_count $lane)" -ge 1 ] && break
+    sleep 0.02
+  done
+  kill -TERM "$driver"
+  wait "$driver" 2>/dev/null
+  sleep 0.5
+  left="$(recorder_count $lane)"
+  rm -f "$slow"
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$left" = 0 ]
+}
+
+t_term_before_the_pid_file_ends_a_recorder_that_ignores_int() {
+  local lane=$((LANE_BASE + 8)) slow="$LIVE/.drive-slow-int.$$.sh" mark="3$$" driver i start end
+  sed 's@^record_pid() {$@&\n  [ "${1##*/}" != record.pid ] || sleep 1@' "$DRIVE" >"$slow"
+  chmod +x "$slow"
+  mkdir -p "$TMP/stubbin"
+  printf '#!/bin/bash\nexec sleep %s\n' "$mark" >"$TMP/stubbin/ffmpeg"
+  chmod +x "$TMP/stubbin/ffmpeg"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || { rm -f "$slow"; return 1; }
+  PATH="$TMP/stubbin:$PATH" LIVE_LANE=$lane "$slow" record 30 "$TMP/int.mp4" 2>/dev/null &
+  driver=$!
+  for i in $(seq 1 50); do
+    pgrep -f "sleep $mark" >/dev/null && break
+    sleep 0.02
+  done
+  start=$SECONDS
+  kill -TERM "$driver"
+  for i in $(seq 1 150); do
+    kill -0 "$driver" 2>/dev/null || break
+    sleep 0.1
+  done
+  end=$((SECONDS - start))
+  kill -KILL "$driver" 2>/dev/null
+  wait "$driver" 2>/dev/null
+  sleep 0.3
+  pgrep -f "sleep $mark" >/dev/null && { pkill -KILL -f "sleep $mark"; end=999; }
+  rm -f "$slow"
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$end" -le 12 ]
+}
+
+t_tests_refuse_to_run_without_an_explicit_lane() {
+  local out
+  out="$(env -u LIVE_TEST_LANE "$LIVE/test-smoke.sh" 2>&1)"
+  [ $? != 0 ] && [[ "$out" == *LIVE_TEST_LANE* ]] || return 1
+  out="$(env -u LIVE_TEST_LANE_BASE "$LIVE/test-drive.sh" 2>&1)"
+  [ $? != 0 ] && [[ "$out" == *LIVE_TEST_LANE_BASE* ]]
 }
 
 t_lanes_run_side_by_side() {
@@ -390,11 +448,7 @@ t_game_log_shows_debugf_while_running() {
   local lane=$((LANE_BASE + 2)) state i seen=no running=no
   state="$(lane_state $lane)"
   printf 'z 100\nwait 400\n' >"$TMP/tap-z.keys"
-  for i in 1 2 3; do
-    LIVE_LANE=$lane LIVE_WINDOW_WAIT=8 "$DRIVE" start >/dev/null 2>&1 && break
-    LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
-    [ "$i" != 3 ] || return 1
-  done
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
   for i in $(seq 1 40); do
     grep -q 'Loaded level' "$state/game.log" 2>/dev/null && seen=yes && break
     LIVE_LANE=$lane "$DRIVE" keys "$TMP/tap-z.keys" >/dev/null 2>&1
@@ -407,6 +461,167 @@ t_game_log_shows_debugf_while_running() {
   fi
   LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
   [ "$seen" = yes ] && [ "$running" = yes ]
+}
+
+t_cancelled_record_stops_its_recorder() {
+  local lane=$((LANE_BASE + 3)) state signal rec rc want i ok=0
+  state="$(lane_state $lane)"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  for signal in TERM INT; do
+    [ "$signal" = TERM ] && want=143 || want=130
+    LIVE_LANE=$lane python3 -I -c 'import os, signal, sys
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+os.execv(sys.argv[1], sys.argv[1:])' "$DRIVE" record 30 "$TMP/cancel.mp4" 2>/dev/null &
+    rec=$!
+    for i in $(seq 1 50); do
+      [ "$(recorder_count $lane)" -ge 1 ] && break
+      sleep 0.1
+    done
+    kill "-$signal" "$rec"
+    for i in $(seq 1 50); do
+      kill -0 "$rec" 2>/dev/null || break
+      sleep 0.1
+    done
+    if kill -0 "$rec" 2>/dev/null; then
+      ok=1
+      kill -KILL "$rec" 2>/dev/null
+    fi
+    wait "$rec" 2>/dev/null
+    rc=$?
+    [ "$rc" = "$want" ] || ok=1
+    sleep 0.5
+    [ "$(recorder_count $lane)" = 0 ] && [ ! -e "$state/record.pid" ] || ok=1
+    pkill -f "ffmpeg.* -i :$((99 + lane)) " 2>/dev/null
+  done
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  return $ok
+}
+
+t_overlapping_record_is_rejected() {
+  local lane=$((LANE_BASE + 3)) state rec out rc ok=0
+  state="$(lane_state $lane)"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  LIVE_LANE=$lane "$DRIVE" record 30 "$TMP/first.mp4" 2>/dev/null &
+  rec=$!
+  for _ in $(seq 1 50); do
+    [ "$(recorder_count $lane)" -ge 1 ] && break
+    sleep 0.1
+  done
+  out="$(LIVE_LANE=$lane "$DRIVE" record 1 "$TMP/second.mp4" 2>&1)"
+  rc=$?
+  [ "$rc" != 0 ] && [[ "$out" == *"already runs"* ]] || ok=1
+  [ "$(recorder_count $lane)" = 1 ] && [ -s "$state/record.pid" ] || ok=1
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  wait "$rec" 2>/dev/null
+  [ -e "$state/record.lock" ] || ok=1
+  return $ok
+}
+
+t_simultaneous_records_leave_one_recorder() {
+  local lane=$((LANE_BASE + 3)) a b ok=0
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  LIVE_LANE=$lane "$DRIVE" record 30 "$TMP/sim-a.mp4" 2>/dev/null &
+  a=$!
+  LIVE_LANE=$lane "$DRIVE" record 30 "$TMP/sim-b.mp4" 2>/dev/null &
+  b=$!
+  sleep 3
+  [ "$(recorder_count $lane)" = 1 ] || ok=1
+  kill -TERM "$a" "$b" 2>/dev/null
+  wait "$a" "$b" 2>/dev/null
+  sleep 0.5
+  [ "$(recorder_count $lane)" = 0 ] || ok=1
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  return $ok
+}
+
+t_record_leaves_the_callers_traps_alone() {
+  bash -c '
+    source "$1"
+    STATE="$2"
+    display_up() { return 0; }
+    ffmpeg() { sleep 0.2; }
+    trap "touch \"$3\"" EXIT
+    cmd_record 1 "$2/out.mp4"
+    flock -n "$2/record.lock" true || exit 1
+    [[ "$(trap -p EXIT)" == *touch* ]] || exit 1
+    trap - EXIT
+    [ ! -e "$3" ]
+  ' _ "$DRIVE" "$TMP/rec-state" "$TMP/rec-trap-fired"
+}
+
+t_record_leaves_the_callers_jobs_alone() {
+  local lane=$((LANE_BASE + 3)) out
+  out="$(LIVE_LANE=$lane timeout 30 bash -c '
+    source "$1"
+    cmd_start >/dev/null
+    sleep 300 &
+    job=$!
+    cmd_record 1 "$2"
+    rc=$?
+    sleep 0.3
+    kill -0 "$job" 2>/dev/null && j=alive || j=killed
+    kill "$job" 2>/dev/null
+    game_running && g=up || g=down
+    echo "$rc $j $g"
+  ' _ "$DRIVE" "$TMP/jobs.mp4" 2>/dev/null)"
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$out" = "0 alive up" ]
+}
+
+t_refused_runs_leave_no_temp_directory() {
+  local scratch="$TMP/refused" script
+  mkdir -p "$scratch"
+  for script in test-drive.sh test-smoke.sh; do
+    env -u LIVE_TEST_LANE -u LIVE_TEST_LANE_BASE TMPDIR="$scratch" "$LIVE/$script" >/dev/null 2>&1
+    [ $? != 0 ] || return 1
+  done
+  [ -z "$(ls -A "$scratch")" ]
+}
+
+t_record_leaves_the_callers_descriptor_9_alone() {
+  bash -c '
+    source "$1"
+    STATE="$2"
+    display_up() { return 0; }
+    ffmpeg() { sleep 0.2; }
+    exec 9>"$3"
+    cmd_record 1 "$2/out.mp4"
+    echo still-open >&9 2>/dev/null || exit 1
+    grep -q still-open "$3"
+  ' _ "$DRIVE" "$TMP/fd9-state" "$TMP/fd9-caller"
+}
+
+t_aborted_keys_run_the_callers_exit_trap() {
+  printf 'z 100\n' >"$TMP/abort.keys"
+  rm -f "$TMP/abort-trap-fired"
+  bash -c '
+    source "$1"
+    game_running() { return 0; }
+    xdotool() { [ "$1" != keydown ]; }
+    trap "touch \"$2\"" EXIT
+    cmd_keys "$3"
+  ' _ "$DRIVE" "$TMP/abort-trap-fired" "$TMP/abort.keys" 2>/dev/null
+  [ -e "$TMP/abort-trap-fired" ]
+}
+
+t_aborted_keys_keep_the_failing_exit_status() {
+  printf 'z 100\n' >"$TMP/status.keys"
+  bash -c '
+    source "$1"
+    game_running() { return 0; }
+    xdotool() { [ "$1" != keydown ]; }
+    trap "s=\$?; touch \"$2\"; exit \$s" EXIT
+    cmd_keys "$3"
+  ' _ "$DRIVE" "$TMP/status-trap-fired" "$TMP/status.keys" 2>/dev/null
+  [ $? != 0 ] && [ -e "$TMP/status-trap-fired" ]
+}
+
+t_start_keeps_xvfb_from_resetting() {
+  local lane=$((LANE_BASE + 3)) rc=0
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  pgrep -f "Xvfb :$((99 + lane)) .*-noreset" >/dev/null || rc=1
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  return $rc
 }
 
 t_start_level_rejects_bad_values() {
@@ -433,30 +648,72 @@ t_start_level_refuses_a_running_game() {
   [ "$rc" = 1 ] && [[ "$out" == *"run drive.sh stop first"* ]]
 }
 
-t_held_start_press_does_not_jump() {
-  local lane=$((LANE_BASE + 4)) state log i
-  state="$(lane_state $lane)"
-  log="$state/game.log"
-  printf 'z 100\nwait 500\nz 600\n' >"$TMP/hold-start.keys"
-  printf 'z 1500\n' >"$TMP/hold-jump.keys"
-  for i in 1 2 3; do
-    LIVE_LANE=$lane LIVE_WINDOW_WAIT=8 "$DRIVE" start >/dev/null 2>&1 && break
-    LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
-    [ "$i" != 3 ] || return 1
+wait_for_steps() {
+  local log="$1" more="$2" want j
+  want=$(($(grep -ac '^Step ' "$log") + more))
+  for j in $(seq 1 50); do
+    [ "$(grep -ac '^Step ' "$log")" -ge "$want" ] && return 0
+    sleep 0.1
   done
-  LIVE_LANE=$lane "$DRIVE" keys "$TMP/hold-start.keys" >/dev/null 2>&1
-  sleep 0.3
-  local early jumps
+  return 1
+}
+
+press_until_logged() {
+  local lane="$1" hold="$2" pattern="$3" log i j
+  log="$(lane_state $lane)/game.log"
+  printf 'z %s\n' "$hold" >"$TMP/press-$hold.keys"
+  for i in 1 2 3; do
+    LIVE_LANE=$lane "$DRIVE" keys "$TMP/press-$hold.keys" >/dev/null 2>&1
+    for j in $(seq 1 20); do
+      if grep -aq "$pattern" "$log"; then
+        wait_for_steps "$log" 2
+        return 0
+      fi
+      sleep 0.1
+    done
+  done
+  return 1
+}
+
+t_held_start_press_does_not_jump() {
+  local lane=$((LANE_BASE + 4)) log i early jumps=0
+  log="$(lane_state $lane)/game.log"
+  printf 'z 1500\n' >"$TMP/hold-jump.keys"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  if ! { press_until_logged $lane 100 'Starting Game' && press_until_logged $lane 600 'Loaded level'; }; then
+    echo "  a setup press never showed its effect" >&2
+    grep -av '^Step ' "$log" | tail -20 >&2
+    LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+    return 1
+  fi
   early="$(sed -n '/Loaded level/,$p' "$log" | grep -c 'State change: Jump')"
   LIVE_LANE=$lane "$DRIVE" keys "$TMP/hold-jump.keys" >/dev/null 2>&1
-  sleep 0.3
-  jumps="$(grep -c 'State change: Jump' "$log")"
+  for i in $(seq 1 30); do
+    jumps="$(grep -ac 'State change: Jump' "$log")"
+    [ "$jumps" -ge 2 ] && break
+    sleep 0.1
+  done
+  if [ "$early" != 0 ] || [ "$jumps" -lt 2 ]; then
+    echo "  early=$early jumps=$jumps" >&2
+    grep -av '^Step ' "$log" | tail -20 >&2
+    grep -ac '^Step ' "$log" >&2
+  fi
   LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
   [ "$early" = 0 ] && [ "$jumps" -ge 2 ]
 }
 
 check "held-jump: a jump held from Ready player waits for release" t_held_start_press_does_not_jump
 check "ce-3: game.log shows debugf lines while the game runs" t_game_log_shows_debugf_while_running
+check "fix: start runs Xvfb with -noreset so the readiness probe cannot reset it" t_start_keeps_xvfb_from_resetting
+check "fix: a cancelled record stops its recorder and removes record.pid" t_cancelled_record_stops_its_recorder
+check "fix: a second record on a lane with a live record.pid is rejected" t_overlapping_record_is_rejected
+check "fix: two records started together leave one recorder" t_simultaneous_records_leave_one_recorder
+check "fix-3: record leaves the caller's background jobs and the game alone" t_record_leaves_the_callers_jobs_alone
+check "fix-3: a refused test run leaves no temp directory" t_refused_runs_leave_no_temp_directory
+check "fix-3: record leaves the caller's descriptor 9 alone" t_record_leaves_the_callers_descriptor_9_alone
+check "fix: record leaves the caller's traps alone" t_record_leaves_the_callers_traps_alone
+check "fix: an aborted keys run still runs the caller's EXIT trap" t_aborted_keys_run_the_callers_exit_trap
+check "fix: an aborted keys run keeps its failing exit status through the caller's EXIT trap" t_aborted_keys_keep_the_failing_exit_status
 check "ce-3: start --level rejects bad values" t_start_level_rejects_bad_values
 check "ce-3: start --level refuses a running game" t_start_level_refuses_a_running_game
 check "ce-3: start --level refuses LIVE_BIN" t_start_level_refuses_live_bin
@@ -469,6 +726,9 @@ check "item 5: start ignores a foreign pid" t_start_ignores_a_foreign_pid
 check "item 6: stop kills a background record" t_stop_kills_a_background_recorder
 check "item 6: terminating smoke leaves no recorder or Xvfb" t_terminated_smoke_leaves_no_recorder
 check "item 6: stop cleans up after a killed smoke" t_stop_cleans_up_after_a_killed_smoke
+check "fix-2: a TERM before the recorder pid file is written leaves no recorder" t_stop_catches_a_recorder_when_term_races_its_pid_file
+check "fix-3: a TERM before the pid file ends a recorder that ignores INT within bounded time" t_term_before_the_pid_file_ends_a_recorder_that_ignores_int
+check "fix-2: the tests refuse to run without an explicit lane" t_tests_refuse_to_run_without_an_explicit_lane
 check "item 7: two lanes write to separate folders" t_lanes_run_side_by_side
 check "item 8: stop removes logs after a clean run" t_stop_removes_logs_after_a_clean_run
 check "item 8: a failed start keeps logs and names them" t_failed_start_keeps_logs_and_says_where

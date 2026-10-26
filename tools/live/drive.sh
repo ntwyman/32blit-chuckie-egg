@@ -150,7 +150,7 @@ cmd_start() {
       fi
       rm -f "$lock"
     fi
-    Xvfb "$DISPLAY" -screen 0 "$SCREEN" >"$STATE/xvfb.log" 2>&1 &
+    Xvfb "$DISPLAY" -screen 0 "$SCREEN" -noreset >"$STATE/xvfb.log" 2>&1 &
     record_pid "$STATE/xvfb.pid" $!
     local i
     for i in $(seq 1 $((WINDOW_WAIT * 10))); do
@@ -184,7 +184,20 @@ cmd_start() {
     stop_procs || true
     die "no game window on $DISPLAY after ${WINDOW_WAIT}s, see $STATE/game.log"
   fi
-  sleep 1
+  local stepping=0
+  for i in $(seq 1 $((WINDOW_WAIT * 10))); do
+    game_running || break
+    if grep -aq '^Step ' "$STATE/game.log"; then
+      stepping=1
+      break
+    fi
+    sleep 0.1
+  done
+  if [ "$stepping" = 0 ]; then
+    keep_logs
+    stop_procs || true
+    die "the game opened a window but ran no step within ${WINDOW_WAIT}s, see $STATE/game.log"
+  fi
   echo "start: game running (pid $(pid_of "$STATE/game.pid"), display $DISPLAY)"
 }
 
@@ -295,21 +308,38 @@ hold_for() {
   HOLD_PID=""
 }
 
+RESTORE_TRAPS=""
+
+install_cleanup() {
+  local cleanup="$1" t exit_cmd=""
+  RESTORE_TRAPS=""
+  if [ "$BASHPID" = "$$" ]; then
+    RESTORE_TRAPS="$(trap -p INT TERM EXIT)"
+    t="$(trap -p EXIT)"
+    if [ -n "$t" ]; then
+      eval "set -- $t"
+      exit_cmd="$3"
+    fi
+  fi
+  trap "exit_status=\$?; set +e; $cleanup; (exit \$exit_status); $exit_cmd" EXIT
+  trap "$cleanup; trap - INT TERM EXIT; eval \"\$RESTORE_TRAPS\"; kill -s INT \$BASHPID" INT
+  trap "$cleanup; trap - INT TERM EXIT; eval \"\$RESTORE_TRAPS\"; kill -s TERM \$BASHPID" TERM
+}
+
+restore_traps() {
+  trap - INT TERM EXIT
+  eval "$RESTORE_TRAPS"
+}
+
 cmd_keys() {
   [ $# -eq 1 ] || die "usage: drive.sh keys <script>"
   need xdotool
-  local file steps key ms saved
+  local file steps key ms
   file="$(resolve_script "$1")"
   steps="$(parse_keys "$file")" || exit 2
   [ -n "$steps" ] || return 0
   game_running || die "game is not running, run: drive.sh start"
-  saved=""
-  if [ "$BASHPID" = "$$" ]; then
-    saved="$(trap -p INT TERM EXIT)"
-  fi
-  trap 'release_held' EXIT
-  trap 'release_held; trap - INT TERM EXIT; eval "$saved"; kill -s INT $BASHPID' INT
-  trap 'release_held; trap - INT TERM EXIT; eval "$saved"; kill -s TERM $BASHPID' TERM
+  install_cleanup release_held
   while read -r key ms; do
     if [ "$key" = wait ]; then
       ms_sleep "$ms"
@@ -320,8 +350,7 @@ cmd_keys() {
       release_held
     fi
   done <<<"$steps"
-  trap - INT TERM EXIT
-  eval "$saved"
+  restore_traps
 }
 
 cmd_shot() {
@@ -332,17 +361,38 @@ cmd_shot() {
   import -window root "$1"
 }
 
+REC_BG=""
+
+stop_record() {
+  local last="${!:-}" job
+  stop_proc "$STATE/record.pid" INT || true
+  [ -n "$last" ] && [ "$last" != "$REC_BG" ] || return 0
+  for job in $(jobs -p); do
+    [ "$job" = "$last" ] || continue
+    record_pid "$STATE/record.pid" "$job"
+    stop_proc "$STATE/record.pid" INT || true
+  done
+}
+
 cmd_record() {
   [ $# -eq 2 ] || die "usage: drive.sh record <seconds> <path>"
-  need ffmpeg
+  local REC_LOCK_FD
+  need ffmpeg flock
   display_up || die "no display $DISPLAY, run: drive.sh start"
   mkdir -p "$(dirname "$2")" "$STATE"
+  exec {REC_LOCK_FD}>"$STATE/record.lock"
+  flock -n "$REC_LOCK_FD" || die "a recording already runs on lane $LANE, run drive.sh stop first"
+  ! pid_alive "$STATE/record.pid" || die "a recording already runs on lane $LANE (pid $(pid_of "$STATE/record.pid")), run drive.sh stop first"
   local rc=0
+  REC_BG="${!:-}"
+  install_cleanup stop_record
   ffmpeg -nostdin -loglevel error -y -f x11grab -draw_mouse 0 -framerate 30 -video_size "${SCREEN%x*}" -i "$DISPLAY" \
     -t "$1" -c:v libx264 -pix_fmt yuv420p "$2" &
   record_pid "$STATE/record.pid" $!
   wait $! || rc=$?
-  rm -f "$STATE/record.pid"
+  stop_record
+  restore_traps
+  exec {REC_LOCK_FD}>&-
   [ "$rc" = 0 ] || [ "$rc" = 255 ]
 }
 
