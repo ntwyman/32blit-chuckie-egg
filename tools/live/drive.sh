@@ -112,7 +112,7 @@ build_level() {
   local level="$1" dir="$ROOT/build.sdl-level$1"
   mkdir -p "$STATE"
   echo "start: building $dir with CHUCKIE_START_LEVEL=$level" >&2
-  if ! { cmake -B "$dir" -S "$ROOT" -DCHUCKIE_START_LEVEL="$level" && cmake --build "$dir" -j; } >"$STATE/build.log" 2>&1; then
+  if ! { cmake -B "$dir" -S "$ROOT" -DCHUCKIE_START_LEVEL="$level" && cmake --build "$dir" -j4; } >"$STATE/build.log" 2>&1; then
     keep_logs
     die "the level $level build failed, see $STATE/build.log"
   fi
@@ -138,7 +138,7 @@ cmd_start() {
     return 0
   fi
   [ $# -eq 0 ] || build_level "$2"
-  [ -x "$BIN" ] || die "no game binary at $BIN; build it with: cmake -B build.sdl && cmake --build build.sdl -j"
+  [ -x "$BIN" ] || die "no game binary at $BIN; build it with: cmake -B build.sdl && cmake --build build.sdl -j4"
   mkdir -p "$STATE"
   rm -f "$STATE/failed"
   if ! display_up; then

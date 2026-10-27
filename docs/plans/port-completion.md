@@ -76,7 +76,7 @@ In every **Verify** block, trunk means the PR's base, which is its parent branch
 Each live lane runs in its own git worktree at the PR head, inside the dev container. There is no `control-ui` or `control-cli` for a 32Blit SDL window, so lanes drive the game through `tools/live/drive.sh`, which CE-2 adds.
 
 - [ ] `git fetch origin <head-branch>`.
-- [ ] Create the lane's worktree with `git worktree add /tmp/lane-<pr-id>-<n> <head SHA>` and work in it. The dev container has the SDK, so build there with `cmake -B build.sdl && cmake --build build.sdl -j`. Wait for `build.sdl/chuckie-egg` to exist. The container cannot run Docker, so never call `docker`.
+- [ ] Create the lane's worktree with `git worktree add /tmp/lane-<pr-id>-<n> <head SHA>` and work in it. The dev container has the SDK, so build there with `cmake -B build.sdl && cmake --build build.sdl -j4`. Wait for `build.sdl/chuckie-egg` to exist. The container cannot run Docker, so never call `docker`.
 - [ ] Start the game with `tools/live/drive.sh start`, which runs it under `Xvfb` at 320x240 on display `:<99+n>` for lane `n`, so parallel lanes never share a display. Deliver input only through `tools/live/drive.sh keys <script>`, which sends `xdotool` key events. The read-only diagnostics are the game's `debugf` output on stdout and `tools/parity/run.sh --script <name>` traces.
 - [ ] Save every screenshot to `/tmp/swarm-<pr-id>/worker-<n>/<slug>.png` with `tools/live/drive.sh shot <path>` and return the paths with the report.
 
