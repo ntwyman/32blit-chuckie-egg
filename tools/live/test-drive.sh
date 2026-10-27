@@ -633,6 +633,15 @@ t_start_level_rejects_bad_values() {
   ! [ -e "$(lane_state $lane)/game.pid" ]
 }
 
+t_start_score_rejects_bad_values() {
+  local lane=$((LANE_BASE + 1)) bad out
+  for bad in 00 01 100000000 -1 x ""; do
+    out="$(LIVE_LANE=$lane "$DRIVE" start --score "$bad" 2>&1)"
+    [ $? = 2 ] && [[ "$out" == *"--score must be"* ]] || return 1
+  done
+  ! [ -e "$(lane_state $lane)/game.pid" ]
+}
+
 t_start_level_refuses_live_bin() {
   local out
   out="$(LIVE_LANE=$((LANE_BASE + 1)) LIVE_BIN=/bin/true "$DRIVE" start --level 2 2>&1)"
@@ -716,6 +725,7 @@ check "fix: an aborted keys run still runs the caller's EXIT trap" t_aborted_key
 check "fix: an aborted keys run keeps its failing exit status through the caller's EXIT trap" t_aborted_keys_keep_the_failing_exit_status
 check "ce-3: start --level rejects bad values" t_start_level_rejects_bad_values
 check "ce-3: start --level refuses a running game" t_start_level_refuses_a_running_game
+check "ce-6: start --score rejects bad values" t_start_score_rejects_bad_values
 check "ce-3: start --level refuses LIVE_BIN" t_start_level_refuses_live_bin
 check "item 1: a key script does not glob" t_glob_in_key_script
 check "item 2: an empty script is a no-op" t_empty_script_is_a_noop
