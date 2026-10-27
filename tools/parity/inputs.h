@@ -11,12 +11,14 @@
 
 #define INPUTS_MAX_LEVEL 256
 #define INPUTS_MAX_SCORE 99999999
+#define INPUTS_MAX_PLAYERS 4
 #define INPUTS_MAX_FRAMES 1000000
 #define INPUTS_JUMP 0x10
 
 typedef struct {
   int level;
   long score;
+  int players;
   size_t count;
   uint8_t *buttons;
 } Inputs;
@@ -75,11 +77,12 @@ static inline int inputs_buttons(const char *text) {
 }
 
 static inline Inputs inputs_read(const char *path) {
-  Inputs in = {1, 0, 0, NULL};
+  Inputs in = {1, 0, 1, 0, NULL};
   size_t capacity = 0;
   int line_no = 0;
   int seen_level = 0;
   int seen_score = 0;
+  int seen_players = 0;
   char line[256];
   FILE *f = fopen(path, "r");
   if (f == NULL) {
@@ -99,7 +102,7 @@ static inline Inputs inputs_read(const char *path) {
     }
     for (char *w = strtok(line, " \t\r\n"); w != NULL; w = strtok(NULL, " \t\r\n")) {
       if (words == 2) {
-        inputs_fail(path, line_no, "expected '<frames> <keys>', 'level <n>' or 'score <n>', got extra word", w);
+        inputs_fail(path, line_no, "expected '<frames> <keys>', 'level <n>', 'score <n>' or 'players <n>', got extra word", w);
       }
       word[words++] = w;
     }
@@ -128,6 +131,18 @@ static inline Inputs inputs_read(const char *path) {
       }
       in.score = score;
       seen_score = 1;
+      continue;
+    }
+    if (strcmp(word[0], "players") == 0) {
+      long players = words == 2 ? inputs_number(word[1], INPUTS_MAX_PLAYERS) : 0;
+      if (in.count > 0 || seen_players) {
+        inputs_fail(path, line_no, "the players line must come once, before every frame line", word[0]);
+      }
+      if (players == 0) {
+        inputs_fail(path, line_no, "expected 'players <n>' with n from 1 to 4, got", words == 2 ? word[1] : "");
+      }
+      in.players = (int)players;
+      seen_players = 1;
       continue;
     }
     long frames = inputs_number(word[0], INPUTS_MAX_FRAMES);
@@ -171,9 +186,17 @@ static inline Inputs inputs_from_args(int argc, char **argv, const char *usage, 
   int i = 1;
   long level = 0;
   long score = 0;
+  long players = 0;
   Inputs in;
-  while (i + 1 < argc && (strcmp(argv[i], "--level") == 0 || strcmp(argv[i], "--score") == 0)) {
-    if (argv[i][2] == 'l') {
+  while (i + 1 < argc && (strcmp(argv[i], "--level") == 0 || strcmp(argv[i], "--score") == 0 ||
+                          strcmp(argv[i], "--players") == 0)) {
+    if (argv[i][2] == 'p') {
+      players = inputs_number(argv[i + 1], INPUTS_MAX_PLAYERS);
+      if (players == 0) {
+        fprintf(stderr, "--players must be a whole number from 1 to 4, got '%s'\n", argv[i + 1]);
+        exit(2);
+      }
+    } else if (argv[i][2] == 'l') {
       level = inputs_number(argv[i + 1], INPUTS_MAX_LEVEL);
       if (level == 0) {
         fprintf(stderr, "--level must be a whole number from 1 to 256, got '%s'\n", argv[i + 1]);
@@ -198,6 +221,9 @@ static inline Inputs inputs_from_args(int argc, char **argv, const char *usage, 
   }
   if (score != 0) {
     in.score = score;
+  }
+  if (players != 0) {
+    in.players = (int)players;
   }
   *next = i + 1;
   return in;

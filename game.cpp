@@ -1129,6 +1129,7 @@ FrameTrace Game::Snapshot() {
     t.lives = this->player().lives;
     t.bonus = this->player().bonus;
     t.timer = this->timer;
+    t.player = this->currentPlayer;
     t.has_lift = this->hasLift;
     if (this->hasLift) {
         t.lift_x = this->liftX;

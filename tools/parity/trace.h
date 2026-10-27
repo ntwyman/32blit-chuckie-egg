@@ -27,6 +27,7 @@ typedef struct {
   int32_t lives;
   int32_t bonus;
   int32_t timer;
+  int32_t player;
   int32_t has_lift;
   int32_t lift_x;
   int32_t lift_y[2];

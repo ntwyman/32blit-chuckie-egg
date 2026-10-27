@@ -1,0 +1,22 @@
+# Two players take turns on level 2 and each dies three times. Player 1 takes the grain and egg and then runs left into the
+# gap in the floor (253 frames, 250 points). Player 2 runs left from the start into the egg and the gap (43 frames, 100 points).
+# The script covers the turn order, each player's own score, lives, bonus and eggs, and the "Ready player" screen the port
+# shows between turns (the driver answers it).
+players 2
+level 2
+100 -
+60 right
+93 left
+10 -
+33 left
+100 -
+60 right
+93 left
+10 -
+33 left
+100 -
+60 right
+93 left
+10 -
+33 left
+20 -

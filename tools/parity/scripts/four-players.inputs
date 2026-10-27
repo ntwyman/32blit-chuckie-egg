@@ -1,0 +1,53 @@
+# Four players on level 2 start 150 points short of an extra life. Player 1's death run takes 250 points and crosses 10,000,
+# so player 1 has six lives. Players 2 to 4 run left into the egg and the gap, take 100 points, and cross nothing.
+# After five rounds players 2 to 4 have no lives left, the turn order skips them, and player 1 plays on alone.
+# The script ends before player 1's last death, because the original then starts a new game at once while the port waits at game over.
+players 4
+level 2
+score 9850
+100 -
+60 right
+93 left
+10 -
+33 left
+10 -
+33 left
+10 -
+33 left
+100 -
+60 right
+93 left
+10 -
+33 left
+10 -
+33 left
+10 -
+33 left
+100 -
+60 right
+93 left
+10 -
+33 left
+10 -
+33 left
+10 -
+33 left
+100 -
+60 right
+93 left
+10 -
+33 left
+10 -
+33 left
+10 -
+33 left
+100 -
+60 right
+93 left
+10 -
+33 left
+10 -
+33 left
+10 -
+33 left
+100 -

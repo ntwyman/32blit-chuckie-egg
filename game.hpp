@@ -93,6 +93,7 @@ public:
   void Step(uint8_t buttons);
 #ifdef CHUCKIE_PARITY
   FrameTrace Snapshot();
+  bool ReadyScreen() const { return state == GameState::READY_PLAYER; }
 #endif
 
 private:

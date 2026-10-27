@@ -12,11 +12,11 @@ static inline void trace_write(FILE *out, int frame, const FrameTrace *t) {
   fprintf(out,
           "frame=%d henry_x=%d henry_y=%d henry_tile_x=%d henry_tile_y=%d"
           " henry_partial_x=%d henry_partial_y=%d henry_mode=%d dead=%d"
-          " score=%d lives=%d bonus=%d timer=%d",
+          " score=%d lives=%d bonus=%d timer=%d player=%d",
           frame, (int)t->henry_x, (int)t->henry_y, (int)t->henry_tile_x,
           (int)t->henry_tile_y, (int)t->henry_partial_x, (int)t->henry_partial_y,
           (int)t->henry_mode, (int)t->dead, (int)t->score, (int)t->lives,
-          (int)t->bonus, (int)t->timer);
+          (int)t->bonus, (int)t->timer, (int)t->player);
   if (t->has_lift) {
     fprintf(out, " lift_x=%d lift_y0=%d lift_y1=%d", (int)t->lift_x,
             (int)t->lift_y[0], (int)t->lift_y[1]);

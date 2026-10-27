@@ -13,6 +13,7 @@
 
 int parity_start_level;
 int parity_start_score;
+int parity_players;
 
 static Inputs script;
 static size_t frame;
@@ -62,6 +63,7 @@ void RenderFrame(void) {
   t.lives = player_data->lives;
   t.bonus = digits(bonus, 4);
   t.timer = digits(timer_ticks, 3);
+  t.player = current_player;
   t.has_lift = have_lift;
   if (have_lift) {
     t.lift_x = lift_x;
@@ -90,9 +92,9 @@ static void on_abort(int sig) {
 
 int main(int argc, char **argv) {
   int next;
-  script = inputs_from_args(argc, argv, "original_driver [--level <n>] [--score <n>] <script.inputs>", &next);
+  script = inputs_from_args(argc, argv, "original_driver [--level <n>] [--score <n>] [--players <n>] <script.inputs>", &next);
   if (next != argc) {
-    fprintf(stderr, "usage: original_driver [--level <n>] [--score <n>] <script.inputs>\n");
+    fprintf(stderr, "usage: original_driver [--level <n>] [--score <n>] [--players <n>] <script.inputs>\n");
     return 2;
   }
   // Upstream's start_game calls ResetPlayer, which takes the first level's
@@ -101,6 +103,7 @@ int main(int argc, char **argv) {
   // gives the start level its bonus and leaves the restart as upstream plays it.
   parity_start_level = current_level = script.level - 1;
   parity_start_score = (int)script.score;
+  parity_players = script.players;
   signal(SIGABRT, on_abort);
   run_game();
   return 0;

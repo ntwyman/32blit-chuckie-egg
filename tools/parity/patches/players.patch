@@ -1,0 +1,12 @@
+--- a/chuckie.c
++++ b/chuckie.c
+@@ -10,7 +10,8 @@
+ #include "chuckie.h"
+ #include "raster.h"
+ 
+-#define NUM_PLAYERS 1
++extern int parity_players;
++#define NUM_PLAYERS parity_players
+ 
+ int skip_frame;
+ int cheat;
