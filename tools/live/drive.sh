@@ -544,6 +544,10 @@ cmd_play() {
   [ -n "$steps" ] || die "$file has no frames"
   players="$(awk '{ sub(/#.*/, "") } $1 == "players" { print $2 }' "$file")"
   players="${players:-1}"
+  [[ "$players" =~ ^[1-4]$ ]] || {
+    echo "drive.sh: $file: expected 'players <n>' with n from 1 to 4, got '$players'" >&2
+    exit 2
+  }
   PLAYERS="$players"
   PLAY_WALL0=""
   game_running || die "game is not running, run: drive.sh start"
@@ -563,6 +567,8 @@ cmd_play() {
     sleep 0.1
   done
   [ -e "$STATE/play.ready" ] || die "play: the key sender did not start"
+  while IFS= read -r -u "$PLAY_FD" _; do :; done
+  PLAY_PENDING=""
   HELD_KEYS=""
   PLAY_LATE=0
   play_await 0

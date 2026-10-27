@@ -98,6 +98,14 @@ t_play_reports_a_stalled_replay_as_late() {
   [ "$status" = 1 ] && [[ "$out" == *" late"* ]] && [[ "$out" != *" 0 late"* ]]
 }
 
+t_play_rejects_a_players_line_with_code_in_it() {
+  local status
+  printf 'players a[$(>%s/pwned)]\n3 left\n' "$TMP" >"$TMP/evil.inputs"
+  LIVE_LANE=$((LANE_BASE + 0)) "$DRIVE" play "$TMP/evil.inputs" >/dev/null 2>&1
+  status=$?
+  [ "$status" = 2 ] && [ ! -e "$TMP/pwned" ]
+}
+
 t_empty_script_is_a_noop() {
   printf '# nothing\n\n' >"$TMP/empty.keys"
   LIVE_LANE=$((LANE_BASE + 0)) "$DRIVE" keys "$TMP/empty.keys"
@@ -768,6 +776,7 @@ check "item 1: a key script does not glob" t_glob_in_key_script
 check "ce-7: play rejects a key the live driver cannot press" t_play_rejects_bad_lines
 check "ce-7: play replays 24 left frame-exactly and takes the first egg" t_play_replays_a_script_frame_exactly
 check "ce-7 review: play counts a replay that runs behind the game as late" t_play_reports_a_stalled_replay_as_late
+check "ce-7 review: play does not evaluate a players line" t_play_rejects_a_players_line_with_code_in_it
 check "item 2: an empty script is a no-op" t_empty_script_is_a_noop
 check "item 3: empty combo parts are rejected with file:line" t_rejects_empty_combo_parts
 check "item 4: README lists u, i, o, p" t_readme_lists_every_accepted_key
