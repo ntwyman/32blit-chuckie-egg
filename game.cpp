@@ -49,6 +49,7 @@ uint16_t bonusForLevel(unsigned int level) {
 
 constexpr uint8_t START_LIVES = 5;
 constexpr uint32_t EXTRA_LIFE_SCORE = 10000;
+constexpr uint32_t SCORE_LIMIT = 100000000;
 constexpr int FALL_DEATH_Y = 222;
 }
 
@@ -1016,7 +1017,9 @@ void Game::addScore(int n) {
     uint32_t &score = this->player().score;
     uint32_t oldScore = score;
     score += n;
-    if (score / EXTRA_LIFE_SCORE != oldScore / EXTRA_LIFE_SCORE) {
+    bool crossed = score / EXTRA_LIFE_SCORE != oldScore / EXTRA_LIFE_SCORE;
+    score %= SCORE_LIMIT;
+    if (crossed) {
         this->extraLife = true;
     }
 }
