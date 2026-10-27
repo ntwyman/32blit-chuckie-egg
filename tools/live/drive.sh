@@ -548,11 +548,9 @@ cmd_play() {
   PLAY_BASE="$PLAY_STEP"
   for ((i = 1; i < players; i++)); do
     play_set Up
-    play_until "Step"
-    play_until "Step"
+    sleep 0.15
     play_set ""
-    play_until "Step"
-    play_until "Step"
+    sleep 0.3
   done
   play_set z
   play_until "Starting Game"
