@@ -1,7 +1,7 @@
 # Two players stand still on level 1 until the hens have killed player 1 five times and player 2 four times.
 # Player 1 reaches a bonus of 0 on its last life. Upstream keeps one zero_bonus flag for every player (chuckie.c:18, :778, :891), so
 # that flag stays set and freezes player 2's bonus, while the port counts each player's bonus on its own.
-# Player 2's bonus therefore differs from frame 8520 on; see "Two quirks the port does not copy" in tools/parity/README.md.
+# See "Two quirks the port does not copy" in tools/parity/README.md.
 # The script ends before player 2's last death, because the original then starts a new game at once while the port waits at game over.
 players 2
 level 1

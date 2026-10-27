@@ -1,6 +1,6 @@
 # Run into the gap in the floor of level 2 five times, with the same run each life, and then wait one more frame.
 # After the fifth death the original starts a new game at once (chuckie.c:1139-1144), with the bonus of the level it reached and
-# zero_bonus still set. The port shows its game-over screen instead, so every field differs on the last frame.
+# zero_bonus still set. The port shows its game-over screen instead.
 # The report pins that frame, so a port that replays the level at no lives, or restarts the game, would differ from it.
 level 2
 100 -
