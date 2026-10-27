@@ -51,6 +51,8 @@ constexpr uint8_t START_LIVES = 5;
 constexpr uint32_t EXTRA_LIFE_SCORE = 10000;
 constexpr uint32_t SCORE_LIMIT = 100000000;
 constexpr int FALL_DEATH_Y = 222;
+// About two seconds at 30 ms a step. A player tapping jump as a hen catches him must not skip the screen.
+constexpr unsigned int GAME_OVER_LOCK_STEPS = 67;
 }
 
 Game::Game(unsigned int hudLevel, uint32_t score) : startLevel(hudLevel - 1), startScore(score) {}
@@ -81,6 +83,7 @@ void Game::loseLife() {
     }
     if (this->activePlayers == 0) {
         this->state = GameState::GAME_OVER;
+        this->gameOverLock = GAME_OVER_LOCK_STEPS;
         return;
     }
     unsigned int next = this->currentPlayer;
@@ -1082,7 +1085,9 @@ void Game::Step(uint8_t buttons) {
             }
             break;
         case GameState::GAME_OVER:
-            if (this->newDown & BUTTON_A) {
+            if (this->gameOverLock > 0) {
+                this->gameOverLock--;
+            } else if (this->newDown & BUTTON_A) {
                 this->state = GameState::HOW_MANY;
             }
             break;

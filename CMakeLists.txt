@@ -82,10 +82,15 @@ if(CHUCKIE_PARITY)
     target_compile_options(parity-original PRIVATE -Wno-stringop-overflow)
   endif()
 
+  add_executable(parity-gameover ${PARITY}/game_over_test.cpp game.cpp levels.cpp sprites.cpp)
+  target_include_directories(parity-gameover PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_compile_definitions(parity-gameover PRIVATE CHUCKIE_PARITY)
+  target_link_libraries(parity-gameover BlitEngine)
+
   add_executable(parity-clock ${PARITY}/clock_test.cpp)
   target_include_directories(parity-clock PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-  add_custom_target(parity DEPENDS parity-port parity-original parity-clock)
+  add_custom_target(parity DEPENDS parity-port parity-original parity-clock parity-gameover)
 endif()
 
 # The SDK's web shell uses FS and IDBFS from its preRun, but newer Emscripten

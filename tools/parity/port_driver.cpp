@@ -56,7 +56,7 @@ static void enterLevel(Game &game, int players) {
 // frame, so both traces hold the next player's first frame at the same index.
 static void stepFrame(Game &game, uint8_t buttons) {
   game.Step(buttons);
-  if (game.ReadyScreen()) {
+  if (game.State() == GameState::READY_PLAYER) {
     game.Step(buttons & ~BUTTON_A);
     game.Step(buttons | BUTTON_A);
     game.Step(buttons);

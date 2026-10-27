@@ -93,7 +93,7 @@ public:
   void Step(uint8_t buttons);
 #ifdef CHUCKIE_PARITY
   FrameTrace Snapshot();
-  bool ReadyScreen() const { return state == GameState::READY_PLAYER; }
+  GameState State() const { return state; }
 #endif
 
 private:
@@ -150,6 +150,7 @@ private:
 #endif
 
   GameState state = GameState::HOW_MANY;
+  unsigned int gameOverLock{};
 
   // Screen
   blit::Size screenSize{};
