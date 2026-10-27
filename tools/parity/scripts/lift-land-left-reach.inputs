@@ -1,0 +1,5 @@
+# Jump toward a lift and pass one pixel short of its left edge; Henry must not land.
+level 6
+5 -
+2 up
+13 right+jump

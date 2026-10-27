@@ -1,0 +1,12 @@
+# Land on the second lift while its top is level with Henry (henryHitLift, chuckie.c PlayerHitLift).
+level 14
+5 -
+16 -
+23 jump
+24 down
+3 down
+27 up+jump
+1 right+jump
+15 right+jump
+1 down
+20 jump

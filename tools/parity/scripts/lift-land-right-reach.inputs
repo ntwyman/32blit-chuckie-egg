@@ -1,0 +1,5 @@
+# Jump onto a lift at the right limit of its landing width.
+level 3
+5 -
+1 right
+14 left+jump
