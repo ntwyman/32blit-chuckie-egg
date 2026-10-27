@@ -1,0 +1,10 @@
+# What `tools/parity/run.sh --script held-through-level-complete` reports. run.sh fails when the report changes.
+# Each indented line is a field, the first frame it differs on, and both values. The last line counts and hashes every difference.
+# Rewrite it with `run.sh --record held-through-level-complete` only for a change the PR means to make.
+held-through-level-complete DIVERGES at frame 16 field henry_x
+  henry_x first differs at frame 16: port 60, original 61
+  henry_tile_x first differs at frame 16: port 7, original 8
+  henry_partial_x first differs at frame 16: port 7, original 0
+  score first differs at frame 53: port 1000, original 1100
+  timer first differs at frame 83: port 891, original 892
+  every difference: 268 field values over 75 frames, sha256 4bcdcce1f27fcafc

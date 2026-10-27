@@ -26,7 +26,7 @@ The last line of a diverging report, `every difference: <n> field values over <m
 
 `--clock` runs `clock_test`, which feeds `FrameClock::due` fixed timestamps and checks how many `Game::Step` calls it returns. The trace diff cannot see the clock, because it calls `Step` once per input frame. `--all` runs it after the scripts.
 
-`--game-over` runs `game_over_test`, which plays five deaths and checks that A does not leave the game-over screen for its first 67 steps (about two seconds), and that a fresh press then does. The trace diff cannot see the screen, because the original starts a new game at once. `--all` runs it after the clock test.
+`--game-over` runs `game_over_test`, which plays five deaths and checks that A does not leave the game-over screen for its first 67 steps (about two seconds), and that a fresh press then does. It also plays a game that reaches level 2 to game over and checks that the next game starts on level 1 with level 1's bonus, lives, and score, where upstream starts it with the bonus of the level reached (see "Two quirks the port does not copy"). The trace diff cannot see the screen, because the original starts a new game at once. `--all` runs it after the clock test.
 
 `--self-test` checks the comparator on fixed traces. CI runs it before `--all`.
 
@@ -59,7 +59,7 @@ Both drivers take `[--level <n>] [--score <n>] [--players <n>] <script.inputs>`,
 
 Both sides record before their death and level-complete checks. `dead` is 1 on the frame Henry dies on both sides, and both then take the life and reload the level at the start of the next frame, so that frame shows one fewer life and the level as it restarts. A completed level works the same way. The frame the last egg goes, or `skip` is held, shows the level as it was. The next frame shows the bonus counted into the score, the next level loaded with its own bonus, timer and hens, and Henry's first move on it.
 
-The port ignores a button held into a level start, including the start after a death, until it is released (`chuckie.c:218` sets `button_ack`). The original driver ignores `button_ack`. A script that holds a key through a death therefore differs by design, and `held-through-death` pins that difference. The other scripts let go of every key on the respawn frame.
+The port ignores a button held into a level start, including the start after a death and the start of the next level, until it is released (`chuckie.c:218` sets `button_ack`). The original driver ignores `button_ack`. A script that holds a key through a death or a level skip therefore differs by design, and `held-through-death` and `held-through-level-complete` pin those differences. The other scripts let go of every key on the respawn and the level-change frame.
 
 After the last life of the last player the original starts a new game at once. The port shows its game-over screen, and a fresh press of A after 67 steps returns to the player-count screen. A script that goes on past that death compares the port's menu with the original's new game. `game-over` does so for one frame and pins the difference, so a port that replays the level at no lives, or restarts the game, differs from the pinned report. Every other script ends on or before the last death, which is why `long-play` ends on the fifth.
 
