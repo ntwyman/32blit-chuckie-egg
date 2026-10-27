@@ -37,22 +37,38 @@ APIData &api_data = host_api_data;
 
 static const int BATCH_RUNS = 200;
 
-static const char usage[] = "port_driver [--level <n>] <script.inputs> [--bench <frames>]";
+static const char usage[] = "port_driver [--level <n>] [--score <n>] [--players <n>] <script.inputs> [--bench <frames>]";
 
-static void enterLevel(Game &game) {
+static void enterLevel(Game &game, int players) {
   blit::Size screen(320, 240);
   game.SetScreenSize(screen);
+  for (int i = 1; i < players; i++) {
+    game.Step(BUTTON_UP);
+    game.Step(0);
+  }
   game.Step(BUTTON_A);
   game.Step(0);
   game.Step(BUTTON_A);
 }
 
+// With more than one player the port stops on a "Ready player" screen where the
+// original goes straight to the next player's level. Answer it and replay the
+// frame, so both traces hold the next player's first frame at the same index.
+static void stepFrame(Game &game, uint8_t buttons) {
+  game.Step(buttons);
+  if (game.State() == GameState::READY_PLAYER) {
+    game.Step(buttons & ~BUTTON_A);
+    game.Step(buttons | BUTTON_A);
+    game.Step(buttons);
+  }
+}
+
 static double stepBatchMicros(const Inputs &in, size_t frames) {
-  Game game(in.level);
-  enterLevel(game);
+  Game game(in.level, in.score);
+  enterLevel(game, in.players);
   auto start = std::chrono::steady_clock::now();
   for (size_t frame = 0; frame < frames; frame++) {
-    game.Step(in.buttons[frame]);
+    stepFrame(game, in.buttons[frame]);
   }
   return std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count();
 }
@@ -67,10 +83,10 @@ static double medianBatchMicros(const Inputs &in, size_t frames, int runs) {
 }
 
 static size_t framesUntilDeath(const Inputs &in) {
-  Game game(in.level);
-  enterLevel(game);
+  Game game(in.level, in.score);
+  enterLevel(game, in.players);
   for (size_t frame = 0; frame < in.count; frame++) {
-    game.Step(in.buttons[frame]);
+    stepFrame(game, in.buttons[frame]);
     if (game.Snapshot().dead) {
       return frame + 1;
     }
@@ -111,10 +127,10 @@ int main(int argc, char **argv) {
     return bench(in, (size_t)frames);
   }
 
-  Game game(in.level);
-  enterLevel(game);
+  Game game(in.level, in.score);
+  enterLevel(game, in.players);
   for (size_t frame = 0; frame < in.count; frame++) {
-    game.Step(in.buttons[frame]);
+    stepFrame(game, in.buttons[frame]);
     FrameTrace t = game.Snapshot();
     trace_write(stdout, (int)frame, &t);
   }

@@ -32,10 +32,19 @@ if(NOT CHUCKIE_START_LEVEL EQUAL 1)
   message(STATUS "A new game starts on level ${CHUCKIE_START_LEVEL} (CHUCKIE_START_LEVEL)")
 endif()
 
+set(CHUCKIE_START_SCORE 0 CACHE STRING "The score a new game starts with, from 0 to 99999999")
+string(LENGTH "${CHUCKIE_START_SCORE}" CHUCKIE_START_SCORE_LENGTH)
+if(NOT CHUCKIE_START_SCORE MATCHES "^(0|[1-9][0-9]*)$" OR CHUCKIE_START_SCORE_LENGTH GREATER 8)
+  message(FATAL_ERROR "CHUCKIE_START_SCORE must be a whole number from 0 to 99999999, got '${CHUCKIE_START_SCORE}'")
+endif()
+if(NOT CHUCKIE_START_SCORE EQUAL 0)
+  message(STATUS "A new game starts with score ${CHUCKIE_START_SCORE} (CHUCKIE_START_SCORE)")
+endif()
+
 blit_executable (${PROJECT_NAME} ${PROJECT_SOURCE})
 blit_assets_yaml (${PROJECT_NAME} assets.yml)
 blit_metadata (${PROJECT_NAME} metadata.yml)
-target_compile_definitions(${PROJECT_NAME} PRIVATE CHUCKIE_START_LEVEL=${CHUCKIE_START_LEVEL})
+target_compile_definitions(${PROJECT_NAME} PRIVATE CHUCKIE_START_LEVEL=${CHUCKIE_START_LEVEL} CHUCKIE_START_SCORE=${CHUCKIE_START_SCORE})
 
 option(CHUCKIE_PARITY "Build the host-only trace diff drivers in tools/parity" OFF)
 if(CHUCKIE_PARITY)
@@ -73,10 +82,15 @@ if(CHUCKIE_PARITY)
     target_compile_options(parity-original PRIVATE -Wno-stringop-overflow)
   endif()
 
+  add_executable(parity-gameover ${PARITY}/game_over_test.cpp game.cpp levels.cpp sprites.cpp)
+  target_include_directories(parity-gameover PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_compile_definitions(parity-gameover PRIVATE CHUCKIE_PARITY)
+  target_link_libraries(parity-gameover BlitEngine)
+
   add_executable(parity-clock ${PARITY}/clock_test.cpp)
   target_include_directories(parity-clock PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-  add_custom_target(parity DEPENDS parity-port parity-original parity-clock)
+  add_custom_target(parity DEPENDS parity-port parity-original parity-clock parity-gameover)
 endif()
 
 # The SDK's web shell uses FS and IDBFS from its preRun, but newer Emscripten

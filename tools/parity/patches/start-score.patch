@@ -1,0 +1,26 @@
+--- a/chuckie.c
++++ b/chuckie.c
+@@ -1075,17 +1075,20 @@
+ }
+ 
+ extern int parity_start_level;
++extern int parity_start_score;
+ 
+ static void start_game(void)
+ {
+-  int i, j;
++  int i, j, value;
+   num_players = active_players = NUM_PLAYERS;
+   for (i = 3; i >= 0; i--) {
+       current_player = i;
+       player_data->lives = 5;
+       level[i] = parity_start_level;
+-      for (j = 0; j < 8; j++) {
+-	  player_data->score[j] = 0;
++      value = parity_start_score;
++      for (j = 7; j >= 0; j--) {
++	  player_data->score[j] = value % 10;
++	  value /= 10;
+       }
+       ResetPlayer();
+   }

@@ -61,8 +61,8 @@ struct Henry {
 struct Player {
   uint8_t lives;
   uint8_t level;
-  uint8_t score[8];
-  uint8_t bonus[4];
+  uint32_t score;
+  uint16_t bonus;
   uint8_t egg[16];
   uint8_t grain[16];
 };
@@ -87,12 +87,13 @@ struct BigDuck {
 
 class Game {
 public:
-  explicit Game(unsigned int hudLevel);
+  explicit Game(unsigned int hudLevel, uint32_t startScore = 0);
   void SetScreenSize(blit::Size &);
   void Render(blit::Surface &);
   void Step(uint8_t buttons);
 #ifdef CHUCKIE_PARITY
   FrameTrace Snapshot();
+  GameState State() const { return state; }
 #endif
 
 private:
@@ -107,7 +108,12 @@ private:
 
   void startGame();
   void loadLevel();
+  void loseLife();
+  bool henryDied() const;
+  Player &player() { return playerData[currentPlayer]; }
+  const Player &player() const { return playerData[currentPlayer]; }
   void renderBackground(blit::Surface &);
+  void renderPlayerSlot(blit::Surface &, unsigned int player);
   void renderDucks(blit::Surface &);
   void renderHenry(blit::Surface &);
   void renderLifts(blit::Surface &);
@@ -128,6 +134,7 @@ private:
 
   void addScore(int);
   void reduceBonus();
+  void maybeAddExtraLife();
   bool cannotMove(Henry&);
   bool canGrabLadder(Henry&, int16_t);
   bool henryHitLift(Henry&);
@@ -143,6 +150,7 @@ private:
 #endif
 
   GameState state = GameState::HOW_MANY;
+  unsigned int gameOverLock{};
 
   // Screen
   blit::Size screenSize{};
@@ -165,7 +173,9 @@ private:
 
   // state
   bool isDead{};
+  bool extraLife{};
   uint8_t startLevel{};
+  uint32_t startScore{};
   uint8_t currentLevel{};
   uint8_t numPlayers = 1;
   uint8_t activePlayers{};
@@ -178,8 +188,6 @@ private:
   uint8_t currentDuck{};
   uint8_t tiles[ROWS * COLUMNS]{};
   uint16_t timer{};
-  uint16_t bonus{};
-  uint32_t score{};
   uint32_t randHigh{};
 
   Player playerData[MAX_PLAYERS]{};

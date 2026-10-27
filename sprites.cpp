@@ -43,6 +43,21 @@ Sprite SpriteDigits[] = {
     {9, 9, 1, 1}
 };
 
+// The same glyphs in the HUD colour, for the scores of the players who are not in play. The current
+// player's score is black on a HUD-coloured box instead (upstream draws the box and the digits with XOR).
+Sprite SpriteScoreDigits[] = {
+    {5, 14, 1, 1},
+    {6, 14, 1, 1},
+    {7, 14, 1, 1},
+    {8, 14, 1, 1},
+    {9, 14, 1, 1},
+    {10, 14, 1, 1},
+    {5, 15, 1, 1},
+    {6, 15, 1, 1},
+    {7, 15, 1, 1},
+    {8, 15, 1, 1}
+};
+
 Sprite SpriteHenryWalks[] = {
     { 6, 0, 1, 2},
     { 6, 2, 1, 2},

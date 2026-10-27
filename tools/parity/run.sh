@@ -11,7 +11,7 @@ EXPECTED="$PARITY/expected-divergent.txt"
 TRACES="$BUILD/parity/traces"
 
 usage() {
-  echo "usage: run.sh --all | --script <name> | --record <name> | --clock | --self-test" >&2
+  echo "usage: run.sh --all | --script <name> | --record <name> | --clock | --game-over | --self-test" >&2
   exit 2
 }
 
@@ -230,6 +230,7 @@ main() {
       done
       check_files || status=1
       "$BUILD/parity-clock" || status=1
+      "$BUILD/parity-gameover" || status=1
       ;;
     --script)
       [ $# -eq 2 ] || usage
@@ -247,6 +248,11 @@ main() {
       [ $# -eq 1 ] || usage
       build
       "$BUILD/parity-clock" || status=1
+      ;;
+    --game-over)
+      [ $# -eq 1 ] || usage
+      build
+      "$BUILD/parity-gameover" || status=1
       ;;
     --self-test)
       [ $# -eq 1 ] || usage

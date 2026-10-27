@@ -1,0 +1,21 @@
+# Two players take turns on level 2 and each dies three times. Player 1 takes the grain and egg and then runs left into the
+# gap in the floor. Player 2 runs left from the start into the egg and the gap.
+# Checks the turn order and each player's own score, lives, bonus and eggs. The driver answers the port's "Ready player" screen.
+players 2
+level 2
+100 -
+60 right
+93 left
+10 -
+33 left
+100 -
+60 right
+93 left
+10 -
+33 left
+100 -
+60 right
+93 left
+10 -
+33 left
+20 -

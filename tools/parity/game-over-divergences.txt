@@ -1,0 +1,26 @@
+# What `tools/parity/run.sh --script game-over` reports. run.sh fails when the report changes.
+# Each indented line is a field, the first frame it differs on, and both values. The last line counts and hashes every difference.
+# Rewrite it with `run.sh --record game-over` only for a change the PR means to make.
+game-over DIVERGES at frame 1265 field henry_x
+  henry_x first differs at frame 1265: port 33, original 60
+  henry_y first differs at frame 1265: port 15, original 32
+  henry_tile_x first differs at frame 1265: port 4, original 7
+  henry_tile_y first differs at frame 1265: port -1, original 2
+  henry_partial_x first differs at frame 1265: port 4, original 7
+  henry_partial_y first differs at frame 1265: port 7, original 0
+  henry_mode first differs at frame 1265: port 3, original 0
+  score first differs at frame 1265: port 250, original 0
+  lives first differs at frame 1265: port 0, original 5
+  bonus first differs at frame 1265: port 1720, original 2000
+  timer first differs at frame 1265: port 868, original 900
+  duck_timer first differs at frame 1265: port 5, original 1
+  hen0_x first differs at frame 1265: port 72, original 48
+  hen0_y first differs at frame 1265: port 156, original 196
+  hen0_mode first differs at frame 1265: port 3, original 0
+  hen1_x first differs at frame 1265: port 16, original 8
+  hen1_y first differs at frame 1265: port 72, original 36
+  hen1_mode first differs at frame 1265: port 1, original 0
+  hen2_x first differs at frame 1265: port 140, original 144
+  hen2_y first differs at frame 1265: port 76, original 116
+  hen2_mode first differs at frame 1265: port 1, original 0
+  every difference: 21 field values over 1 frames, sha256 3396c4a7b25142f7

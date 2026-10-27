@@ -29,5 +29,6 @@ extern const Sprite &SpriteBigDuck;
 extern const Sprite &SpriteBigDuckFrame;
 
 extern Sprite SpriteDigits[];
+extern Sprite SpriteScoreDigits[];
 extern Sprite SpriteHenryWalks[];
 extern Sprite SpriteHenryClimbs[];

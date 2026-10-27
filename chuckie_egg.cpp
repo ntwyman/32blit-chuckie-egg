@@ -11,7 +11,7 @@ using namespace blit;
 
 FrameClock frame_clock;
 uint32_t step_count = 0;
-Game game(CHUCKIE_START_LEVEL);
+Game game(CHUCKIE_START_LEVEL, CHUCKIE_START_SCORE);
 
 void init() {
   set_screen_mode(ScreenMode::hires);
