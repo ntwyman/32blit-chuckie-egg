@@ -446,12 +446,32 @@ play_line() {
   done
 }
 
+PLAY_WALL0=""
+PLAY_GAME0=""
+PLAYERS=1
+
+# A step line read long after the game logged it means the keys for it went out late, even when no step was skipped.
+play_lag_check() {
+  local game_ms="$1" wall_ms
+  wall_ms=$((${EPOCHREALTIME/./} / 1000))
+  if [ -z "$PLAY_WALL0" ]; then
+    PLAY_WALL0="$wall_ms"
+    PLAY_GAME0="$game_ms"
+  elif [ $((wall_ms - PLAY_WALL0 - (game_ms - PLAY_GAME0))) -gt 12 ]; then
+    PLAY_LATE=$((PLAY_LATE + 1))
+  fi
+}
+
 play_await() {
   local want="$1" line n
   while :; do
     play_line || die "play: no step in the game log for 5 seconds"
-    [[ "$line" =~ ^Step\ ([0-9]+): ]] || continue
+    if [ "$PLAYERS" -gt 1 ] && [[ "$line" == "Henry died"* ]]; then
+      die "play: Henry died with $PLAYERS players, and the next player's ready screen needs an A press the script cannot give"
+    fi
+    [[ "$line" =~ ^Step\ ([0-9]+):\ ran\ [0-9]+\ at\ ([0-9]+)\ ms ]] || continue
     n="${BASH_REMATCH[1]}"
+    play_lag_check "${BASH_REMATCH[2]}"
     PLAY_STEP="$n"
     if [ "$n" -ge "$want" ]; then
       [ "$n" -eq "$want" ] || PLAY_LATE=$((PLAY_LATE + 1))
@@ -524,6 +544,8 @@ cmd_play() {
   [ -n "$steps" ] || die "$file has no frames"
   players="$(awk '{ sub(/#.*/, "") } $1 == "players" { print $2 }' "$file")"
   players="${players:-1}"
+  PLAYERS="$players"
+  PLAY_WALL0=""
   game_running || die "game is not running, run: drive.sh start"
   [ -f "$STATE/game.log" ] || die "no game log at $STATE/game.log"
   rm -f "$STATE/play.fifo"

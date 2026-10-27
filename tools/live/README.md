@@ -71,6 +71,8 @@ Henry grabs a ladder only on one exact pixel, and the game steps on wall-clock t
 - Start a fresh game first. `play` presses A at "How many players" and at "Ready player" itself, and presses up once for each player past the first in a `players` line. A `level` or `score` line must match what you started with (`start --level`, `start --score`). It ignores both.
 - A one-step press did not register reliably at the menus, so scripts for `play` hold every key for two frames or more.
 - It prints `play: <n> frames, <k> late`, and exits 1 when `k` is not 0. A late frame is one where the game logged a step after the expected one, so the script's input slipped.
+- A replay that reads a step line more than 12 ms after the game logged it counts that frame as late too, so a stalled replay fails.
+- It stops with an error when Henry dies in a game of more than one player, because the next player's ready screen needs an A press that a script cannot give.
 - `skip` is not a key. The live game has no level skip.
 - `keypipe.py` sends the key events over one X connection. Starting `xdotool` for each event takes about 17 ms, more than half a step. It needs `python3`, `libX11` and `libXtst`.
 - `tools/parity/scripts/complete-level-1.inputs` collects every egg on level 1 this way.
