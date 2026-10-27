@@ -2,8 +2,7 @@
 // Copyright (C) 2020-2026 ntwyman
 
 // The trace diff cannot see the game-over screen, because the original starts a new game at
-// once. This drives Game through the five deaths and checks when A leaves the screen, and that a
-// game after one that reached level 2 starts on level 1 as a fresh game.
+// once. This drives Game through the five deaths and checks when A leaves the screen.
 
 #include "game.hpp"
 #include "engine/api_private.hpp"

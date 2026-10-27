@@ -1,6 +1,5 @@
 # Collect all twelve eggs of level 1 without dying, then idle on level 2. Every key is held for at least two frames, because the live
-# driver cannot press for one. A layered search over copies of Game found the route, and the trace diff checks the port against the original.
-# Replay it live with tools/live/drive.sh play.
+# driver cannot press for one. Replay it live with tools/live/drive.sh play.
 level 1
 24 left
 14 right
