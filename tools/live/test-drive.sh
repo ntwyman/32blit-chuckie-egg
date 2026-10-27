@@ -61,6 +61,26 @@ t_glob_in_key_script() {
   [ $? = 2 ]
 }
 
+t_play_rejects_bad_lines() {
+  local out status
+  printf 'level 1\n3 left\n2 skip\n' >"$TMP/skip.inputs"
+  out="$(LIVE_LANE=$((LANE_BASE + 0)) "$DRIVE" play "$TMP/skip.inputs" 2>&1)"
+  status=$?
+  [ "$status" = 2 ] && [[ "$out" == *"skip.inputs:3:"* ]]
+}
+
+t_play_replays_a_script_frame_exactly() {
+  local lane=$((LANE_BASE + 3)) state out
+  state="$(lane_state $lane)"
+  printf 'level 1\n24 left\n10 -\n' >"$TMP/egg.inputs"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  out="$(LIVE_LANE=$lane "$DRIVE" play "$TMP/egg.inputs" 2>&1)"
+  local status=$? eggs
+  eggs="$(grep -ac 'Eggs left: 11' "$state/game.log" 2>/dev/null)"
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$status" = 0 ] && [[ "$out" == *"34 frames, 0 late"* ]] && [ "$eggs" = 1 ]
+}
+
 t_empty_script_is_a_noop() {
   printf '# nothing\n\n' >"$TMP/empty.keys"
   LIVE_LANE=$((LANE_BASE + 0)) "$DRIVE" keys "$TMP/empty.keys"
@@ -728,6 +748,8 @@ check "ce-3: start --level refuses a running game" t_start_level_refuses_a_runni
 check "ce-6: start --score rejects bad values" t_start_score_rejects_bad_values
 check "ce-3: start --level refuses LIVE_BIN" t_start_level_refuses_live_bin
 check "item 1: a key script does not glob" t_glob_in_key_script
+check "ce-7: play rejects a key the live driver cannot press" t_play_rejects_bad_lines
+check "ce-7: play replays 24 left frame-exactly and takes the first egg" t_play_replays_a_script_frame_exactly
 check "item 2: an empty script is a no-op" t_empty_script_is_a_noop
 check "item 3: empty combo parts are rejected with file:line" t_rejects_empty_combo_parts
 check "item 4: README lists u, i, o, p" t_readme_lists_every_accepted_key

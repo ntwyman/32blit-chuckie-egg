@@ -15,6 +15,7 @@
 | `drive.sh start --level <n>` | Builds the SDL target in `build.sdl-level<n>` with `-DCHUCKIE_START_LEVEL=<n>`, then starts it, so a new game starts on level `<n>` (1 to 256, as the HUD numbers it). It refuses `LIVE_BIN`. The build log is `$LIVE_STATE/build.log`. |
 | `drive.sh start --score <n>` | The same with `-DCHUCKIE_START_SCORE=<n>` in `build.sdl-score<n>`, so a new game starts with score `<n>` (0 to 99999999). It combines with `--level` in `build.sdl-level<l>-score<n>`. |
 | `drive.sh keys <script>` | Sends a key script. A `<script>` with a `/` is a path. A bare name is looked up in `tools/live/scripts/` (as given, then with `.keys`) and only then in the current directory. Use `./name.keys` for a file in the current directory. An empty script does nothing and exits zero. |
+| `drive.sh play <script.inputs>` | Replays a trace-diff input script (`tools/parity/scripts/*.inputs`) on a fresh game, one game step per script frame. See "Frame-exact replay". |
 | `drive.sh shot <path>` | Saves a screenshot of the display as a PNG. |
 | `drive.sh record <seconds> <path>` | Records the display as an MP4 for that long. It blocks, so run it in the background while a key script plays. INT or TERM stops the recorder and removes `record.pid`. A non-interactive shell starts a background `record &` with INT ignored, so cancel it with TERM. A second `record` on a lane that is already recording fails. |
 | `drive.sh stop` | Stops the game and `Xvfb`. It exits zero when nothing runs. |
@@ -62,6 +63,17 @@ From boot, `z` at "How many players" and `z` at "Ready player" starts play. `scr
 | `climb-first-ladder.keys` | Walks to the big ladder on level 1 with up held, so Henry grabs it, then climbs. |
 
 Henry grabs a ladder only on one exact pixel, and the game steps on wall-clock time. `left+up` held while walking past the ladder grabs it without aiming.
+
+## Frame-exact replay
+
+`keys` times its presses in milliseconds, and the game steps on wall-clock time, so it cannot press a key for an exact number of steps. `play` can. It reads the game's `Step <n>` lines from `game.log` and sets the keys for frame *i* right after step *s*+*i* is logged, so they are down for exactly step *s*+*i*+1. The same script then gives the trace diff and the live game the same input, frame for frame.
+
+- Start a fresh game first. `play` presses A at "How many players" and at "Ready player" itself, and presses up once for each player past the first in a `players` line. A `level` or `score` line must match what you started with (`start --level`, `start --score`). It ignores both.
+- A one-step press did not register reliably at the menus, so scripts for `play` hold every key for two frames or more.
+- It prints `play: <n> frames, <k> late`, and exits 1 when `k` is not 0. A late frame is one where the game logged a step after the expected one, so the script's input slipped.
+- `skip` is not a key. The live game has no level skip.
+- `keypipe.py` sends the key events over one X connection. Starting `xdotool` for each event takes about 17 ms, more than half a step. It needs `python3`, `libX11` and `libXtst`.
+- `tools/parity/scripts/complete-level-1.inputs` collects every egg on level 1 this way.
 
 ## Running lanes in parallel
 
