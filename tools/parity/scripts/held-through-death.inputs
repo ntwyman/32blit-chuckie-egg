@@ -1,5 +1,6 @@
 # Hold right through the first death. The port ignores a button held into a level start until it is released
-# (chuckie.c:218 sets button_ack), so Henry stays at the start while the original walks on.
+# (chuckie.c:218 sets button_ack), so Henry stays at the start while the original walks on. The last 60 frames press right
+# again, so a port that never clears the ack after a respawn would not move and would differ more.
 level 1
 100 -
 60 right
@@ -47,3 +48,4 @@ level 1
 59 right
 60 right
 30 -
+60 right

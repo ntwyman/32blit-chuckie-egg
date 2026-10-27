@@ -5,4 +5,4 @@ held-through-death DIVERGES at frame 1359 field henry_x
   henry_x first differs at frame 1359: port 60, original 61
   henry_tile_x first differs at frame 1359: port 7, original 8
   henry_partial_x first differs at frame 1359: port 7, original 0
-  every difference: 263 field values over 90 frames, sha256 22b66c33bbc28a7b
+  every difference: 439 field values over 150 frames, sha256 c5737a972c7250c8
