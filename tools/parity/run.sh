@@ -20,7 +20,7 @@ build() {
   read -ra args <<<"${PARITY_CMAKE_ARGS:-}"
   mkdir -p "$BUILD"
   if ! { cmake -B "$BUILD" -S "$ROOT" -DCHUCKIE_PARITY=ON -DCMAKE_BUILD_TYPE=Release "${args[@]}" &&
-    cmake --build "$BUILD" --target parity -j; } >"$log" 2>&1; then
+    cmake --build "$BUILD" --target parity -j4; } >"$log" 2>&1; then
     cat "$log" >&2
     echo "run.sh: the parity build failed, see $log" >&2
     exit 2
