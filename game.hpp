@@ -121,6 +121,8 @@ private:
   void renderHenry(blit::Surface &);
   void renderLifts(blit::Surface &);
   void renderBigBird(blit::Surface &);
+  const blit::Rect &cageSprite() const;
+  blit::Point cagePosition();
   void moveHenry();
   void moveBigDuck();
   void moveDucks();

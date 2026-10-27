@@ -241,12 +241,14 @@ void Game::loadLevel() {
 
 namespace {
 // x positions are in play-field pixels, from DrawHUD, DrawLives and DrawTimer
-// in raster_4bit.c. The y rows are the port's own, two rows of text.
+// in raster_4bit.c. The y rows are the port's own: the screen has 16 fewer rows above the cage than the
+// original's, so the score boxes lose their top border off the screen and the level line shares
+// the bottom border row of the score boxes. That leaves the cage its three clear rows.
 constexpr int HUD_DIGIT_STRIDE = 5;
-constexpr int HUD_LABEL_Y_TOP = 0;
-constexpr int HUD_DIGIT_Y_TOP = 1;
-constexpr int HUD_LABEL_Y = 12;
-constexpr int HUD_DIGIT_Y = 13;
+constexpr int HUD_LABEL_Y_TOP = -1;
+constexpr int HUD_DIGIT_Y_TOP = 0;
+constexpr int HUD_LABEL_Y = 7;
+constexpr int HUD_DIGIT_Y = 8;
 constexpr int HUD_SCORE_X = 0x00;
 constexpr int HUD_SCORE_BLANK_X = 0x1b;
 constexpr int HUD_SCORE_LAST_X = 0x1b + 1 + 5 * HUD_DIGIT_STRIDE;
@@ -264,7 +266,7 @@ constexpr int HUD_TIMER_LAST_X = 0x9b;
 constexpr int HUD_TIMER_DIGITS = 3;
 constexpr int HUD_SLOT_STRIDE = 0x22;
 constexpr int HUD_LIVES_X = 0x1b;
-constexpr int HUD_LIVES_Y = HUD_DIGIT_Y_TOP + 9;
+constexpr int HUD_LIVES_Y = HUD_DIGIT_Y + 9;
 constexpr int HUD_LIVES_STRIDE = 4;
 constexpr unsigned int HUD_LIVES_MAX = 8;
 }
@@ -345,9 +347,15 @@ void Game::renderBackground(Surface &s) {
         }
     }
 
-    //  Cage
-    const Sprite &cageSprite = this->hasBigDuck ? SpriteCageOpen : SpriteCage;
-    s.sprite(cageSprite, this->screenPosition(0, 0xdc));
+    s.sprite(this->cageSprite(), this->cagePosition());
+}
+
+const Sprite &Game::cageSprite() const {
+    return this->hasBigDuck ? SpriteCageOpen : SpriteCage;
+}
+
+Point Game::cagePosition() {
+    return this->screenPosition(0, 0xdc);
 }
 
 void Game::renderDucks(Surface &s) {
@@ -426,11 +434,33 @@ void Game::renderLifts(Surface &s) {
     }
 }
 
+// Upstream XORs the mother duck onto the cage in one colour plane, so a pixel both set clears.
 void Game::renderBigBird(Surface &s) {
     BigDuck &bigBird = this->bigDuck;
     SpriteTransform flip = (bigBird.dir == DIR_L) ? HORIZONTAL : NONE;
-    s.sprite(bigBird.frame ? SpriteBigDuckFrame : SpriteBigDuck, bigBird.pos,
-             flip);
+    const Sprite &duck = bigBird.frame ? SpriteBigDuckFrame : SpriteBigDuck;
+    s.sprite(duck, bigBird.pos, flip);
+
+    const Sprite &cage = this->cageSprite();
+    Point cagePos = this->cagePosition();
+    Rect sheetDuck(duck.x * TILE_STRIDE, duck.y * TILE_STRIDE, duck.w * TILE_STRIDE, duck.h * TILE_STRIDE);
+    Rect sheetCage(cage.x * TILE_STRIDE, cage.y * TILE_STRIDE, cage.w * TILE_STRIDE, cage.h * TILE_STRIDE);
+    s.pen = Pen(0, 0, 0);
+    for (int dy = 0; dy < sheetDuck.h; dy++) {
+        for (int dx = 0; dx < sheetDuck.w; dx++) {
+            int sx = flip == HORIZONTAL ? sheetDuck.w - 1 - dx : dx;
+            Point onScreen(bigBird.pos.x + dx, bigBird.pos.y + dy);
+            Point inCage = onScreen - cagePos;
+            if (inCage.x < 0 || inCage.y < 0 || inCage.x >= sheetCage.w || inCage.y >= sheetCage.h) {
+                continue;
+            }
+            bool duckSet = s.sprites->get_pixel(Point(sheetDuck.x + sx, sheetDuck.y + dy)).a != 0;
+            bool cageSet = s.sprites->get_pixel(Point(sheetCage.x + inCage.x, sheetCage.y + inCage.y)).a != 0;
+            if (duckSet && cageSet) {
+                s.pixel(onScreen);
+            }
+        }
+    }
 }
 
 char const *stateToString(HenryState state) {
