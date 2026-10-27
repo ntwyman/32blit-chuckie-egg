@@ -106,6 +106,64 @@ t_play_rejects_a_players_line_with_code_in_it() {
   [ "$status" = 2 ] && [ ! -e "$TMP/pwned" ]
 }
 
+t_play_rejects_a_trailing_plus() {
+  local out status
+  printf 'level 1\n5 left+\n' >"$TMP/plus.inputs"
+  out="$(LIVE_LANE=$((LANE_BASE + 0)) "$DRIVE" play "$TMP/plus.inputs" 2>&1)"
+  status=$?
+  [ "$status" = 2 ] && [[ "$out" == *"plus.inputs:2:"* ]]
+}
+
+t_play_survives_a_dead_key_sender() {
+  local lane=$((LANE_BASE + 5)) state sender pid status out held=0 after _
+  state="$(lane_state $lane)"
+  printf 'level 1\n5 -\n2000 left\n' >"$TMP/dead.inputs"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  LIVE_LANE=$lane "$DRIVE" play "$TMP/dead.inputs" >"$TMP/dead.out" 2>&1 &
+  pid=$!
+  for _ in $(seq 1 100); do
+    [ "$(key_is_down $lane Left)" = 1 ] && { held=1; break; }
+    sleep 0.1
+  done
+  sender="$(pgrep -f "keypipe.py $state/play.ready")"
+  [ -n "$sender" ] && kill -KILL $sender
+  timeout 20 tail --pid="$pid" -f /dev/null
+  wait "$pid"
+  status=$?
+  out="$(cat "$TMP/dead.out")"
+  after="$(key_is_down $lane Left)"
+  local left=0
+  [ -e "$state/play.fifo" ] || [ -e "$state/play.ready" ] && left=1
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$held" = 1 ] && [ "$status" != 0 ] && [ "$status" != 141 ] && [[ "$out" == *"play: "* ]] && [ "$after" = 0 ] && [ "$left" = 0 ]
+}
+
+t_stop_removes_the_play_files() {
+  local lane=$((LANE_BASE + 6)) state
+  state="$(lane_state $lane)"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  mkfifo "$state/play.fifo"
+  : >"$state/play.ready"
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ ! -e "$state/play.fifo" ] && [ ! -e "$state/play.ready" ]
+}
+
+play_late_after_load() {
+  printf 'Step 24: ran 1 at 700 ms\nLoaded level 0, Has lift: false\nStep %s: ran %s at 1100 ms\n' "$1" "$2" >"$TMP/load.log"
+  bash -c '
+    source "$1"
+    exec {PLAY_FD}<"$2"
+    PLAY_PENDING=""
+    PLAY_LATE=0
+    play_until "Loaded level"
+    echo "$PLAY_BASE $PLAY_LATE"
+  ' _ "$DRIVE" "$TMP/load.log"
+}
+
+t_play_counts_a_stall_at_level_start_as_late() {
+  [ "$(play_late_after_load 26 2)" = "26 1" ] && [ "$(play_late_after_load 25 1)" = "25 0" ]
+}
+
 t_empty_script_is_a_noop() {
   printf '# nothing\n\n' >"$TMP/empty.keys"
   LIVE_LANE=$((LANE_BASE + 0)) "$DRIVE" keys "$TMP/empty.keys"
@@ -777,6 +835,10 @@ check "ce-7: play rejects a key the live driver cannot press" t_play_rejects_bad
 check "ce-7: play replays 24 left frame-exactly and takes the first egg" t_play_replays_a_script_frame_exactly
 check "ce-7 review: play counts a replay that runs behind the game as late" t_play_reports_a_stalled_replay_as_late
 check "ce-7 review: play does not evaluate a players line" t_play_rejects_a_players_line_with_code_in_it
+check "ce-7 fix: play rejects a trailing plus in a key combo" t_play_rejects_a_trailing_plus
+check "ce-7 fix: play releases its keys and exits non-zero when the key sender dies" t_play_survives_a_dead_key_sender
+check "ce-7 fix: stop removes play.fifo and play.ready" t_stop_removes_the_play_files
+check "ce-7 fix: play counts a stall across the level start as late" t_play_counts_a_stall_at_level_start_as_late
 check "item 2: an empty script is a no-op" t_empty_script_is_a_noop
 check "item 3: empty combo parts are rejected with file:line" t_rejects_empty_combo_parts
 check "item 4: README lists u, i, o, p" t_readme_lists_every_accepted_key

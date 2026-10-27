@@ -1,0 +1,8 @@
+# level-complete-on-death with two players: player 1 dies on the skip frame, the turn passes, and the pending skip completes player
+# 2's level 4 at once. Player 2 gets the 4,000 bonus, and player 1's life count is the only one that drops.
+players 2
+level 4
+5 -
+24 left
+1 left+skip
+10 -

@@ -51,16 +51,18 @@ static void enterLevel(Game &game, int players) {
   game.Step(BUTTON_A);
 }
 
-// With more than one player the port stops on a "Ready player" screen where the
-// original goes straight to the next player's level. Answer it and replay the
-// frame, so both traces hold the next player's first frame at the same index.
-static void stepFrame(Game &game, uint8_t buttons) {
+// After a death with more than one player the port stops on a "Ready player" screen where the original goes
+// straight to the next player's level. Answer that screen and replay the frame, so both traces hold the next
+// player's first frame at the same index. Any other Ready screen is a port bug the trace must show. The port
+// handles a death at the start of the next step, so Henry is already dead before it.
+static void stepFrame(Game &game, uint8_t buttons, int players) {
   if (buttons & INPUTS_SKIP) {
     game.SkipLevel();
   }
   buttons &= INPUTS_BUTTONS;
+  bool died = players > 1 && game.Snapshot().dead;
   game.Step(buttons);
-  if (game.State() == GameState::READY_PLAYER) {
+  if (died && game.State() == GameState::READY_PLAYER) {
     game.Step(buttons & ~BUTTON_A);
     game.Step(buttons | BUTTON_A);
     game.Step(buttons);
@@ -72,7 +74,7 @@ static double stepBatchMicros(const Inputs &in, size_t frames) {
   enterLevel(game, in.players);
   auto start = std::chrono::steady_clock::now();
   for (size_t frame = 0; frame < frames; frame++) {
-    stepFrame(game, in.buttons[frame]);
+    stepFrame(game, in.buttons[frame], in.players);
   }
   return std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count();
 }
@@ -90,7 +92,7 @@ static size_t framesUntilDeath(const Inputs &in) {
   Game game(in.level, in.score);
   enterLevel(game, in.players);
   for (size_t frame = 0; frame < in.count; frame++) {
-    stepFrame(game, in.buttons[frame]);
+    stepFrame(game, in.buttons[frame], in.players);
     if (game.Snapshot().dead) {
       return frame + 1;
     }
@@ -134,7 +136,7 @@ int main(int argc, char **argv) {
   Game game(in.level, in.score);
   enterLevel(game, in.players);
   for (size_t frame = 0; frame < in.count; frame++) {
-    stepFrame(game, in.buttons[frame]);
+    stepFrame(game, in.buttons[frame], in.players);
     FrameTrace t = game.Snapshot();
     trace_write(stdout, (int)frame, &t);
   }

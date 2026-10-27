@@ -245,7 +245,7 @@ stop_procs() {
 cmd_stop() {
   local did=0
   stop_procs && did=1
-  rm -f "$STATE"/*.mkv "$STATE"/*.err
+  rm -f "$STATE"/*.mkv "$STATE"/*.err "$STATE/play.fifo" "$STATE/play.ready"
   if [ -e "$STATE/failed" ]; then
     echo "stop: a run failed; logs are in $STATE" >&2
   else
@@ -404,6 +404,10 @@ parse_inputs() {
     fi
     names=""
     if [ "$rest" != - ]; then
+      if [[ "$rest" == *+ ]]; then
+        echo "drive.sh: $file:$n: empty key in combo '$rest'" >&2
+        return 2
+      fi
       IFS=+ read -ra parts <<<"$rest"
       for part in "${parts[@]}"; do
         case "$part" in
@@ -486,22 +490,33 @@ play_set() {
     if [[ " $1 " == *" $key "* ]]; then
       keep="$keep${keep:+ }$key"
     else
-      echo "keyup $key" >&"$PLAY_XFD"
+      play_send keyup "$key"
     fi
   done
   HELD_KEYS="$keep"
   for key in $1; do
     [[ " $HELD_KEYS " == *" $key "* ]] && continue
-    echo "keydown $key" >&"$PLAY_XFD"
+    play_send keydown "$key"
     HELD_KEYS="$HELD_KEYS${HELD_KEYS:+ }$key"
   done
+}
+
+play_send() {
+  echo "$1 $2" >&"$PLAY_XFD" 2>/dev/null || play_sender_died
+}
+
+play_sender_died() {
+  local keys="$HELD_KEYS"
+  HELD_KEYS=""
+  [ -z "$keys" ] || xdotool keyup $keys 2>/dev/null || true
+  die "play: the key sender died"
 }
 
 play_cleanup() {
   local key
   if [ -n "${PLAY_XFD:-}" ]; then
     for key in $HELD_KEYS; do
-      echo "keyup $key" >&"$PLAY_XFD"
+      echo "keyup $key" >&"$PLAY_XFD" 2>/dev/null || xdotool keyup "$key" 2>/dev/null || true
     done
     exec {PLAY_XFD}>&-
     PLAY_XFD=""
@@ -521,8 +536,9 @@ play_until() {
     lines=$((lines + 1))
     [ "$lines" -lt 400 ] || die "play: the game never logged '$pattern'"
     [[ "$line" == *"$pattern"* ]] && seen=1
-    if [ "$seen" = 1 ] && [[ "$line" =~ ^Step\ ([0-9]+): ]]; then
+    if [ "$seen" = 1 ] && [[ "$line" =~ ^Step\ ([0-9]+):\ ran\ ([0-9]+) ]]; then
       PLAY_BASE="${BASH_REMATCH[1]}"
+      [ "${BASH_REMATCH[2]}" -eq 1 ] || PLAY_LATE=$((PLAY_LATE + 1))
       return 0
     fi
   done
@@ -554,6 +570,7 @@ cmd_play() {
   [ -f "$STATE/game.log" ] || die "no game log at $STATE/game.log"
   rm -f "$STATE/play.fifo"
   mkfifo "$STATE/play.fifo"
+  trap '' PIPE
   install_cleanup play_cleanup
   exec {PLAY_FD}<"$STATE/game.log"
   PLAY_PENDING=""
@@ -596,6 +613,7 @@ cmd_play() {
   play_set ""
   play_cleanup
   restore_traps
+  trap - PIPE
   echo "play: $frames frames, $PLAY_LATE late"
   [ "$PLAY_LATE" = 0 ]
 }

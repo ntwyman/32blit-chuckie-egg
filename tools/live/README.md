@@ -18,7 +18,7 @@
 | `drive.sh play <script.inputs>` | Replays a trace-diff input script (`tools/parity/scripts/*.inputs`) on a fresh game, one game step per script frame. See "Frame-exact replay". |
 | `drive.sh shot <path>` | Saves a screenshot of the display as a PNG. |
 | `drive.sh record <seconds> <path>` | Records the display as an MP4 for that long. It blocks, so run it in the background while a key script plays. INT or TERM stops the recorder and removes `record.pid`. A non-interactive shell starts a background `record &` with INT ignored, so cancel it with TERM. A second `record` on a lane that is already recording fails. |
-| `drive.sh stop` | Stops the game and `Xvfb`. It exits zero when nothing runs. |
+| `drive.sh stop` | Stops the game and `Xvfb`, and removes `play.fifo` and `play.ready`. It exits zero when nothing runs. |
 | `drive.sh smoke` | Starts a fresh game, starts one player, and compares the first frame of level 1 with `golden/level1-start.png`. It prints `smoke: ok` and writes `out/lane<n>/smoke.png`. |
 
 The game's `debugf` output goes to `$LIVE_STATE/game.log`, where `LIVE_STATE` defaults to `/tmp/chuckie-live-<display>`. `start` runs the game under `stdbuf -oL`, so each line reaches `game.log` as the game writes it, not when the game exits.
@@ -72,6 +72,8 @@ Henry grabs a ladder only on one exact pixel, and the game steps on wall-clock t
 - A one-step press did not register reliably at the menus, so scripts for `play` hold every key for two frames or more.
 - It prints `play: <n> frames, <k> late`, and exits 1 when `k` is not 0. A late frame is one where the game logged a step after the expected one, so the script's input slipped.
 - A replay that reads a step line more than 12 ms after the game logged it counts that frame as late too, so a stalled replay fails.
+- A step that ran more than once at the start of the level counts as late too, since the level began in the middle of an update.
+- If the key sender dies, it releases every held key, prints `play: the key sender died`, exits 1, and removes its fifo and ready file.
 - It stops with an error when Henry dies in a game of more than one player, because the next player's ready screen needs an A press that a script cannot give.
 - `skip` is not a key. The live game has no level skip.
 - `keypipe.py` sends the key events over one X connection. Starting `xdotool` for each event takes about 17 ms, more than half a step. It needs `python3`, `libX11` and `libXtst`.
