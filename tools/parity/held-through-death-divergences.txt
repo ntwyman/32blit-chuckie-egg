@@ -1,0 +1,8 @@
+# What `tools/parity/run.sh --script held-through-death` reports. run.sh fails when the report changes.
+# Each indented line is a field, the first frame it differs on, and both values. The last line counts and hashes every difference.
+# Rewrite it with `run.sh --record held-through-death` only for a change the PR means to make.
+held-through-death DIVERGES at frame 1359 field henry_x
+  henry_x first differs at frame 1359: port 60, original 61
+  henry_tile_x first differs at frame 1359: port 7, original 8
+  henry_partial_x first differs at frame 1359: port 7, original 0
+  every difference: 263 field values over 90 frames, sha256 22b66c33bbc28a7b

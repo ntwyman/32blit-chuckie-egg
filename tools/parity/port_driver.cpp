@@ -37,7 +37,7 @@ APIData &api_data = host_api_data;
 
 static const int BATCH_RUNS = 200;
 
-static const char usage[] = "port_driver [--level <n>] <script.inputs> [--bench <frames>]";
+static const char usage[] = "port_driver [--level <n>] [--score <n>] <script.inputs> [--bench <frames>]";
 
 static void enterLevel(Game &game) {
   blit::Size screen(320, 240);
@@ -48,7 +48,7 @@ static void enterLevel(Game &game) {
 }
 
 static double stepBatchMicros(const Inputs &in, size_t frames) {
-  Game game(in.level);
+  Game game(in.level, in.score);
   enterLevel(game);
   auto start = std::chrono::steady_clock::now();
   for (size_t frame = 0; frame < frames; frame++) {
@@ -67,7 +67,7 @@ static double medianBatchMicros(const Inputs &in, size_t frames, int runs) {
 }
 
 static size_t framesUntilDeath(const Inputs &in) {
-  Game game(in.level);
+  Game game(in.level, in.score);
   enterLevel(game);
   for (size_t frame = 0; frame < in.count; frame++) {
     game.Step(in.buttons[frame]);
@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
     return bench(in, (size_t)frames);
   }
 
-  Game game(in.level);
+  Game game(in.level, in.score);
   enterLevel(game);
   for (size_t frame = 0; frame < in.count; frame++) {
     game.Step(in.buttons[frame]);

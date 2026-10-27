@@ -1,0 +1,10 @@
+--- a/chuckie.c
++++ b/chuckie.c
+@@ -881,7 +881,6 @@
+       } while (flag);
+       tmp = timer_ticks[0] + timer_ticks[1] + timer_ticks[2];
+       if (tmp == 0) {
+-	  abort();
+ 	  is_dead++;
+ 	  return;
+       }

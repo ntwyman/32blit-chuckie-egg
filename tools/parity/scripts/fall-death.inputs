@@ -1,0 +1,6 @@
+# Take the grain at the right of level 2, then run left into the gap in the floor and fall off the bottom of the screen. The respawn ends the grain's pause on the bonus.
+level 2
+100 -
+60 right
+93 left
+300 -

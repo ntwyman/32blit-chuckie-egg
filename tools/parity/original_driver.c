@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 int parity_start_level;
+int parity_start_score;
 
 static Inputs script;
 static size_t frame;
@@ -79,9 +80,9 @@ void RenderFrame(void) {
   frame++;
 }
 
-// Upstream calls abort() when the timer runs out (chuckie.c MoveDucks).
-// abort() is called from the game loop itself, not from another thread, so
-// stdout is not mid-write here.
+// The timer-death patch makes the timer kill Henry. The abort() calls left in
+// chuckie.c are for states the game never reaches. abort() is called from the
+// game loop itself, not from another thread, so stdout is not mid-write here.
 static void on_abort(int sig) {
   printf("frame=%zu abort=1\n", frame);
   fflush(stdout);
@@ -90,9 +91,9 @@ static void on_abort(int sig) {
 
 int main(int argc, char **argv) {
   int next;
-  script = inputs_from_args(argc, argv, "original_driver [--level <n>] <script.inputs>", &next);
+  script = inputs_from_args(argc, argv, "original_driver [--level <n>] [--score <n>] <script.inputs>", &next);
   if (next != argc) {
-    fprintf(stderr, "usage: original_driver [--level <n>] <script.inputs>\n");
+    fprintf(stderr, "usage: original_driver [--level <n>] [--score <n>] <script.inputs>\n");
     return 2;
   }
   // Upstream's start_game calls ResetPlayer, which takes the first level's
@@ -100,6 +101,7 @@ int main(int argc, char **argv) {
   // level Henry reached on a restart after game over. Setting it once here
   // gives the start level its bonus and leaves the restart as upstream plays it.
   parity_start_level = current_level = script.level - 1;
+  parity_start_score = (int)script.score;
   signal(SIGABRT, on_abort);
   run_game();
   return 0;

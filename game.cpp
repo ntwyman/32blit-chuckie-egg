@@ -5,6 +5,7 @@
 #include "game.hpp"
 #include "levels.hpp"
 #include "sprites.hpp"
+#include <algorithm>
 #include <bitset>
 #include <cstring>
 // #include <iostream>
@@ -40,17 +41,59 @@ bool Game::isTileWall(int x, int y) {
 }
 
 
-Game::Game(unsigned int hudLevel) : startLevel(hudLevel - 1) {}
+namespace {
+// ResetPlayer in chuckie.c
+uint16_t bonusForLevel(unsigned int level) {
+    unsigned int thousands = level + 1;
+    return (thousands >= 10 ? 9 : thousands) * 1000;
+}
+
+constexpr uint8_t START_LIVES = 5;
+constexpr uint32_t EXTRA_LIFE_SCORE = 10000;
+// Upstream's player_y < 0x11, in the port's screen rows.
+constexpr int FALL_DEATH_Y = 222;
+}
+
+Game::Game(unsigned int hudLevel, uint32_t score) : startLevel(hudLevel - 1), startScore(score) {}
 
 void Game::startGame() {
     this->activePlayers = this->numPlayers;
     for (int i=0; i< this->numPlayers; i++) {
-        memset(&this->playerData[i], 0, sizeof(Player));
-        this->playerData[i].lives = 5;
-        this->playerData[i].level = this->startLevel;
+        Player &p = this->playerData[i];
+        memset(&p, 0, sizeof(Player));
+        p.lives = START_LIVES;
+        p.level = this->startLevel;
+        p.score = this->startScore;
+        p.bonus = bonusForLevel(this->startLevel);
     }
     this->currentLevel = 0;
     this->currentPlayer = 0;
+    this->state = GameState::READY_PLAYER;
+}
+
+bool Game::henryDied() const {
+    return this->isDead || this->henry.pos.y > FALL_DEATH_Y;
+}
+
+// The death branch of run_game in chuckie.c. The port also picks the next
+// player with lives left, where upstream has one player.
+void Game::loseLife() {
+    if (--this->player().lives == 0) {
+        this->activePlayers--;
+    }
+    if (this->activePlayers == 0) {
+        this->state = GameState::GAME_OVER;
+        return;
+    }
+    unsigned int next = this->currentPlayer;
+    do {
+        next = (next + 1) % this->numPlayers;
+    } while (this->playerData[next].lives == 0);
+    if (next == this->currentPlayer) {
+        this->loadLevel();
+        return;
+    }
+    this->currentPlayer = next;
     this->state = GameState::READY_PLAYER;
 }
 
@@ -111,23 +154,18 @@ void Game::loadLevel() {
     for (unsigned int i = 0; i < NUM_EGGS; i++) {
         x = *(p++);
         y = *(p++);
-        this->eggsLeft++;
-        setTile(x, y, (i << 4u) | TILE_EGG);
-        /*    if (player_data->egg[i] == 0) {
-              Do_InitTile(x, y, (i << 4) | TILE_EGG);
-              eggs_left++;
-            }
-        */
+        if (player.egg[i] == 0) {
+            setTile(x, y, (i << 4u) | TILE_EGG);
+            this->eggsLeft++;
+        }
     }
 
     for (unsigned int i = 0; i < this->numGrain; i++) {
         x = *(p++);
         y = *(p++);
-        setTile(x, y, (i << 4u) | TILE_GRAIN);
-        /*        if (player_data->grain[i] == 0) {
-                    Do_InitTile(x, y, (i << 4) | TILE_GRAIN);
-                }
-        */
+        if (player.grain[i] == 0) {
+            setTile(x, y, (i << 4u) | TILE_GRAIN);
+        }
     }
 
     for (auto &duck : ducks) {
@@ -136,6 +174,8 @@ void Game::loadLevel() {
     }
     this->currentLevel = levelNumber;
     this->duckTimer = 0;
+    this->pauseDuckBonus = 0;
+    this->extraLife = false;
     this->duckRate = levelNumber < 32 ? 8 : 5;
     this->currentDuck = 0;
     this->bigDuck.pos = this->screenPosition(4, 0xcc);
@@ -175,11 +215,6 @@ void Game::loadLevel() {
 
     this->randHigh = 0x767676;
     this->randLow = 0x76;
-    int b = currentLevel +1;
-    if (b >= 10)
-        b = 9;
-    this->bonus = b * 1000;
-    this->score = 0;
 }
 
 namespace {
@@ -205,6 +240,11 @@ constexpr int HUD_BONUS_DIGITS = 4;
 constexpr int HUD_TIME_X = 0x7e;
 constexpr int HUD_TIMER_LAST_X = 0x9b;
 constexpr int HUD_TIMER_DIGITS = 3;
+// DrawLives in raster_4bit.c puts the hats at x 0x1b, 4 apart, 9 rows below the score digits.
+constexpr int HUD_LIVES_X = 0x1b;
+constexpr int HUD_LIVES_Y = HUD_DIGIT_Y_TOP + 9;
+constexpr int HUD_LIVES_STRIDE = 4;
+constexpr unsigned int HUD_LIVES_MAX = 8;
 }
 
 static void renderDigit(Surface &s, unsigned int digit, unsigned int x, unsigned int y) {
@@ -218,10 +258,26 @@ static void renderNumber(Surface &s, unsigned int number, unsigned int digits, u
     }
 }
 
+// SPRITE_HAT in spritedata.c is a pixel above a row of three. DrawLives draws
+// one hat per life and DrawLastLife erases the life being played, up to eight.
+void Game::renderLives(Surface &s) {
+    unsigned int spare = this->player().lives > 0 ? this->player().lives - 1u : 0u;
+    unsigned int hats = std::min(spare, HUD_LIVES_MAX);
+    s.pen = Pen(255, 255, 0);
+    for (unsigned int i = 0; i < hats; i++) {
+        int x = X_OFFSET + HUD_LIVES_X + i * HUD_LIVES_STRIDE;
+        s.pixel(Point(x + 1, HUD_LIVES_Y));
+        for (int dx = 0; dx < 3; dx++) {
+            s.pixel(Point(x + dx, HUD_LIVES_Y + 1));
+        }
+    }
+}
+
 void Game::renderBackground(Surface &s) {
     s.sprite(SpriteScore, Point(X_OFFSET + HUD_SCORE_X, HUD_LABEL_Y_TOP));
     s.sprite(SpriteBlank, Point(X_OFFSET + HUD_SCORE_BLANK_X, HUD_LABEL_Y_TOP));
-    renderNumber(s, this->score, HUD_SCORE_DIGITS, HUD_SCORE_LAST_X, HUD_DIGIT_Y_TOP);
+    renderNumber(s, this->player().score, HUD_SCORE_DIGITS, HUD_SCORE_LAST_X, HUD_DIGIT_Y_TOP);
+    this->renderLives(s);
 
     s.sprite(SpritePlayer, Point(X_OFFSET + HUD_PLAYER_X, HUD_LABEL_Y));
     renderDigit(s, this->currentPlayer + 1, HUD_PLAYER_DIGIT_X, HUD_DIGIT_Y);
@@ -235,7 +291,7 @@ void Game::renderBackground(Surface &s) {
     }
 
     s.sprite(SpriteBonus, Point(X_OFFSET + HUD_BONUS_X, HUD_LABEL_Y));
-    renderNumber(s, this->bonus, HUD_BONUS_DIGITS, HUD_BONUS_LAST_X, HUD_DIGIT_Y);
+    renderNumber(s, this->player().bonus, HUD_BONUS_DIGITS, HUD_BONUS_LAST_X, HUD_DIGIT_Y);
 
     s.sprite(SpriteTime, Point(X_OFFSET + HUD_TIME_X, HUD_LABEL_Y));
     renderNumber(s, this->timer, HUD_TIMER_DIGITS, HUD_TIMER_LAST_X, HUD_DIGIT_Y);
@@ -297,8 +353,8 @@ void Game::renderDucks(Surface &s) {
                     pos.x -= 8;
                 }
                 break;
-            default:
-                abort();
+            case EAT1:
+                break;
         }
         s.sprite(sprite, pos, flip);
     }
@@ -748,7 +804,7 @@ void Game::moveDucks() {
             }
             unsigned int tile = this->getTile(x, y);
             if ((tile & TILE_GRAIN) != 0) {
-                this->playerData[this->currentPlayer].grain[tile >> 4]--;
+                this->player().grain[tile >> 4]--;
                 setTile(x, y, tile & ~TILE_GRAIN);
             }
         }
@@ -833,8 +889,6 @@ void Game::moveDucks() {
             thisDuck.pos.y += 4;
             thisDuck.tile.y -= walkTile;
             break;
-        default:
-            abort();
     }
 }
 
@@ -866,7 +920,7 @@ void Game::animateHenry(Henry &h) {
     uint8_t tile = this->getTile(x, y);
     if ((tile & (TILE_EGG | TILE_GRAIN)) == 0)
         return;
-    Player &player = this->playerData[this->currentPlayer];
+    Player &player = this->player();
     if ((tile & TILE_GRAIN) == 0) {
         this->eggsLeft--;
         debugf("Eggs left: %d\r\n", this->eggsLeft);
@@ -965,13 +1019,25 @@ void Game::detectCollisions() {
 }
 
 void Game::addScore(int n) {
-    auto oldScore = this->score;
-    this->score += n;
+    uint32_t &score = this->player().score;
+    uint32_t oldScore = score;
+    score += n;
+    if (score / EXTRA_LIFE_SCORE != oldScore / EXTRA_LIFE_SCORE) {
+        this->extraLife = true;
+    }
 }
 
 void Game::reduceBonus() {
-    if (this->bonus > 0) {
-        this->bonus-=10;
+    uint16_t &bonus = this->player().bonus;
+    if (bonus > 0) {
+        bonus -= 10;
+    }
+}
+
+void Game::maybeAddExtraLife() {
+    if (this->extraLife) {
+        this->extraLife = false;
+        this->player().lives++;
     }
 }
 void Game::SetScreenSize(blit::Size &size) {
@@ -1008,21 +1074,33 @@ void Game::Step(uint8_t buttons) {
             }
             break;
         case GameState::GAME_OVER:
+            if (this->newDown & BUTTON_A) {
+                this->state = GameState::HOW_MANY;
+            }
             break;
         case GameState::LEVEL:
+            // The frame that kills Henry ends with his death on the screen, as
+            // upstream's RenderFrame shows it. The next frame takes the life.
+            if (this->henryDied()) {
+                this->loseLife();
+                if (this->state != GameState::LEVEL) {
+                    break;
+                }
+            }
             this->moveHenry();
             this->moveLifts();
             this->moveDucks();
+            this->maybeAddExtraLife();
             this->detectCollisions();
 
-            if (this->henry.pos.y > 222 || this->isDead) {
-                this->state = GameState::GAME_OVER;
+            if (this->henryDied()) {
                 break;
             }
             if (this->eggsLeft == 0) {
-                while (this->bonus > 0) {
+                while (this->player().bonus > 0) {
                     this->reduceBonus();
                     this->addScore(10);
+                    this->maybeAddExtraLife();
                 }
             }
             break;
@@ -1050,10 +1128,10 @@ FrameTrace Game::Snapshot() {
     t.henry_partial_x = h.partial.x;
     t.henry_partial_y = h.partial.y;
     t.henry_mode = h.state;
-    t.dead = this->state == GameState::GAME_OVER;
-    t.score = this->score;
-    t.lives = this->playerData[this->currentPlayer].lives;
-    t.bonus = this->bonus;
+    t.dead = this->state == GameState::LEVEL && this->henryDied();
+    t.score = this->player().score;
+    t.lives = this->player().lives;
+    t.bonus = this->player().bonus;
     t.timer = this->timer;
     t.has_lift = this->hasLift;
     if (this->hasLift) {

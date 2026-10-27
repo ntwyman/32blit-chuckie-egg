@@ -13,6 +13,7 @@
 | --- | --- |
 | `drive.sh start` | Starts `Xvfb` and the game, and returns once the game has logged its first step, so a key sent next reaches a game that polls input. If the game already runs, it says so and does nothing. |
 | `drive.sh start --level <n>` | Builds the SDL target in `build.sdl-level<n>` with `-DCHUCKIE_START_LEVEL=<n>`, then starts it, so a new game starts on level `<n>` (1 to 256, as the HUD numbers it). It refuses `LIVE_BIN`. The build log is `$LIVE_STATE/build.log`. |
+| `drive.sh start --score <n>` | The same with `-DCHUCKIE_START_SCORE=<n>` in `build.sdl-score<n>`, so a new game starts with score `<n>` (0 to 99999999). It combines with `--level` in `build.sdl-level<l>-score<n>`. |
 | `drive.sh keys <script>` | Sends a key script. A `<script>` with a `/` is a path. A bare name is looked up in `tools/live/scripts/` (as given, then with `.keys`) and only then in the current directory. Use `./name.keys` for a file in the current directory. An empty script does nothing and exits zero. |
 | `drive.sh shot <path>` | Saves a screenshot of the display as a PNG. |
 | `drive.sh record <seconds> <path>` | Records the display as an MP4 for that long. It blocks, so run it in the background while a key script plays. INT or TERM stops the recorder and removes `record.pid`. A non-interactive shell starts a background `record &` with INT ignored, so cancel it with TERM. A second `record` on a lane that is already recording fails. |
