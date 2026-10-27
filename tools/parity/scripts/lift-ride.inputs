@@ -1,0 +1,9 @@
+# Jump from the floor onto a lift, ride it up, jump left onto the ledge and walk along it.
+level 3
+5 -
+1 left+jump
+12 left
+50 -
+1 left+jump
+26 left
+10 right

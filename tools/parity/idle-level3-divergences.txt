@@ -1,7 +1,0 @@
-# What `tools/parity/run.sh --script idle-level3` reports. run.sh fails when the report changes.
-# Each indented line is a field, the first frame it differs on, and both values. The last line counts and hashes every difference.
-# Rewrite it with `run.sh --record idle-level3` only for a change the PR means to make.
-idle-level3 DIVERGES at frame 0 field lift_y0
-  lift_y0 first differs at frame 0: port 9, original 10
-  lift_y1 first differs at frame 0: port 97, original 90
-  every difference: 200 field values over 100 frames, sha256 d5fb04ab855ed8c3

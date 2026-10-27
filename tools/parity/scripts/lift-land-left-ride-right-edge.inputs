@@ -1,0 +1,9 @@
+# Land on the lift at its left edge, then ride it and walk off its right edge.
+level 3
+5 -
+1 left+jump
+14 left
+5 -
+5 left
+18 jump
+17 right

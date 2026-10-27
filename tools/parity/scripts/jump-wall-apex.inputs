@@ -1,0 +1,7 @@
+# Jump right at the top of the arc beside a wall, which must not turn Henry back.
+level 3
+5 -
+1 left+jump
+8 left
+8 right+jump
+8 right
