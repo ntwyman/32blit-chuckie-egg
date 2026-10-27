@@ -1,0 +1,9 @@
+# Two players stand still on level 1 until player 1's bonus reaches 0 on its last life, as in two-players-zero-bonus. Player 2
+# then skips the level with 40 bonus left. Upstream's shared zero_bonus (chuckie.c:18, :1157, :1169) makes the level-complete
+# loop award nothing and then clears the flag, so level 2 starts with player 2's score still 0. The port pays the 40.
+# See "Two quirks the port does not copy" in tools/parity/README.md.
+players 2
+level 1
+8600 -
+1 skip
+20 -

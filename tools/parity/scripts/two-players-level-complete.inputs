@@ -1,0 +1,20 @@
+# Two players each complete level 1 and then die on level 2. Player 1 skips the level, takes the grain and egg and runs left
+# into the gap in the floor. Player 2 does the same from its own level 1. Player 1 then completes level 2 on its next turn.
+# Checks that a completed level keeps the turn, and that each player's level, bonus, score and eggs stay their own.
+players 2
+level 1
+5 -
+1 skip
+100 -
+60 right
+93 left
+10 -
+5 -
+1 skip
+100 -
+60 right
+93 left
+10 -
+5 -
+1 skip
+100 -

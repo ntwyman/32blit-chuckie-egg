@@ -14,6 +14,8 @@
 #define INPUTS_MAX_PLAYERS 4
 #define INPUTS_MAX_FRAMES 1000000
 #define INPUTS_JUMP 0x10
+#define INPUTS_SKIP 0x20
+#define INPUTS_BUTTONS 0x1f
 
 typedef struct {
   int level;
@@ -42,8 +44,8 @@ static inline long inputs_number(const char *text, long max) {
 }
 
 static inline int inputs_key(const char *name) {
-  static const char *const names[] = {"right", "left", "down", "up", "jump"};
-  for (int i = 0; i < 5; i++) {
+  static const char *const names[] = {"right", "left", "down", "up", "jump", "skip"};
+  for (int i = 0; i < 6; i++) {
     if (strcmp(name, names[i]) == 0) {
       return 1 << i;
     }
@@ -151,7 +153,7 @@ static inline Inputs inputs_read(const char *path) {
       inputs_fail(path, line_no, "expected a frame count from 1 to 1000000, got", word[0]);
     }
     if (buttons < 0) {
-      inputs_fail(path, line_no, "expected '-' or keys from right, left, down, up, jump joined by '+', got", word[1]);
+      inputs_fail(path, line_no, "expected '-' or keys from right, left, down, up, jump, skip joined by '+', got", word[1]);
     }
     if (in.count + (size_t)frames > INPUTS_MAX_FRAMES) {
       inputs_fail(path, line_no, "the script runs past 1000000 frames at", word[0]);

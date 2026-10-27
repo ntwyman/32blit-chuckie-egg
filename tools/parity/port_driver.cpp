@@ -55,6 +55,10 @@ static void enterLevel(Game &game, int players) {
 // original goes straight to the next player's level. Answer it and replay the
 // frame, so both traces hold the next player's first frame at the same index.
 static void stepFrame(Game &game, uint8_t buttons) {
+  if (buttons & INPUTS_SKIP) {
+    game.SkipLevel();
+  }
+  buttons &= INPUTS_BUTTONS;
   game.Step(buttons);
   if (game.State() == GameState::READY_PLAYER) {
     game.Step(buttons & ~BUTTON_A);

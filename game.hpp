@@ -60,7 +60,7 @@ struct Henry {
 
 struct Player {
   uint8_t lives;
-  uint8_t level;
+  uint16_t level;
   uint32_t score;
   uint16_t bonus;
   uint8_t egg[16];
@@ -94,6 +94,7 @@ public:
 #ifdef CHUCKIE_PARITY
   FrameTrace Snapshot();
   GameState State() const { return state; }
+  void SkipLevel() { skipLevel = true; }
 #endif
 
 private:
@@ -108,6 +109,8 @@ private:
 
   void startGame();
   void loadLevel();
+  void completeLevel();
+  bool levelComplete() const;
   void loseLife();
   bool henryDied() const;
   Player &player() { return playerData[currentPlayer]; }
@@ -173,10 +176,12 @@ private:
 
   // state
   bool isDead{};
+  bool levelDone{};
+  bool skipLevel{};
   bool extraLife{};
-  uint8_t startLevel{};
+  uint16_t startLevel{};
   uint32_t startScore{};
-  uint8_t currentLevel{};
+  uint16_t currentLevel{};
   uint8_t numPlayers = 1;
   uint8_t activePlayers{};
   uint8_t currentPlayer{};

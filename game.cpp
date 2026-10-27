@@ -67,6 +67,8 @@ void Game::startGame() {
         p.score = this->startScore;
         p.bonus = bonusForLevel(this->startLevel);
     }
+    this->levelDone = false;
+    this->skipLevel = false;
     this->currentLevel = 0;
     this->currentPlayer = 0;
     this->state = GameState::READY_PLAYER;
@@ -98,9 +100,28 @@ void Game::loseLife() {
     this->state = GameState::READY_PLAYER;
 }
 
+void Game::completeLevel() {
+    Player &p = this->player();
+    while (p.bonus > 0) {
+        this->reduceBonus();
+        this->addScore(10);
+        this->maybeAddExtraLife();
+    }
+    p.level++;
+    memset(p.egg, 0, sizeof(p.egg));
+    memset(p.grain, 0, sizeof(p.grain));
+    p.bonus = bonusForLevel(p.level);
+    this->loadLevel();
+}
+
+bool Game::levelComplete() const {
+    return this->eggsLeft == 0 || this->skipLevel;
+}
+
 void Game::loadLevel() {
     this->ignored = this->rawDown;
     this->buttonsDown = 0;
+    this->levelDone = false;
 
     // Clear out the existing tiles
     memset(&this->tiles[0], 0, sizeof(this->tiles));
@@ -726,35 +747,34 @@ void Game::moveLifts() {
 }
 
 void Game::moveBigDuck() {
-    if (!this->hasBigDuck) {
-        return;
-    }
     BigDuck& bd = this->bigDuck;
     Henry& h = this->henry;
-    if (bd.pos.x + 4 < h.pos.x) {
-        if (bd.dPos.x < 5)
-            bd.dPos.x++;
-        bd.dir = DIR_R;
-    } else {
-        if (bd.dPos.x > -5)
-            bd.dPos.x--;
-        bd.dir = DIR_L;
-    }
+    if (this->hasBigDuck) {
+        if (bd.pos.x + 4 < h.pos.x) {
+            if (bd.dPos.x < 5)
+                bd.dPos.x++;
+            bd.dir = DIR_R;
+        } else {
+            if (bd.dPos.x > -5)
+                bd.dPos.x--;
+            bd.dir = DIR_L;
+        }
 
-    if (h.pos.y - 4 <= bd.pos.y) {
-        if (bd.dPos.y > -5)
-            bd.dPos.y --;
-    } else {
-        if (bd.dPos.y < 5)
-            bd.dPos.y ++;
-    }
-    // Don't go off the bottom of the screen
-    if ((bd.pos.y + bd.dPos.y ) > 199) {
-        bd.dPos.y = -bd.dPos.y;
-    }
-    int16_t newX = bd.pos.x + bd.dPos.x;
-    if (newX < X_OFFSET || newX >= (X_OFFSET + 144)) {
-        bd.dPos.x = - bd.dPos.x;
+        if (h.pos.y - 4 <= bd.pos.y) {
+            if (bd.dPos.y > -5)
+                bd.dPos.y --;
+        } else {
+            if (bd.dPos.y < 5)
+                bd.dPos.y ++;
+        }
+        // Don't go off the bottom of the screen
+        if ((bd.pos.y + bd.dPos.y ) > 199) {
+            bd.dPos.y = -bd.dPos.y;
+        }
+        int16_t newX = bd.pos.x + bd.dPos.x;
+        if (newX < X_OFFSET || newX >= (X_OFFSET + 144)) {
+            bd.dPos.x = - bd.dPos.x;
+        }
     }
     bd.pos.x += bd.dPos.x;
     bd.pos.y += bd.dPos.y;
@@ -1097,6 +1117,8 @@ void Game::Step(uint8_t buttons) {
                 if (this->state != GameState::LEVEL) {
                     break;
                 }
+            } else if (this->levelDone) {
+                this->completeLevel();
             }
             this->moveHenry();
             this->moveLifts();
@@ -1107,12 +1129,9 @@ void Game::Step(uint8_t buttons) {
             if (this->henryDied()) {
                 break;
             }
-            if (this->eggsLeft == 0) {
-                while (this->player().bonus > 0) {
-                    this->reduceBonus();
-                    this->addScore(10);
-                    this->maybeAddExtraLife();
-                }
+            if (this->levelComplete()) {
+                this->skipLevel = false;
+                this->levelDone = true;
             }
             break;
     }
@@ -1145,6 +1164,7 @@ FrameTrace Game::Snapshot() {
     t.bonus = this->player().bonus;
     t.timer = this->timer;
     t.player = this->currentPlayer;
+    t.level = this->currentLevel;
     t.has_lift = this->hasLift;
     if (this->hasLift) {
         t.lift_x = this->liftX;
@@ -1153,6 +1173,11 @@ FrameTrace Game::Snapshot() {
     }
     t.duck_timer = this->duckTimer;
     t.current_duck = this->currentDuck;
+    Point bigDuckPos = this->upstreamPosition(this->bigDuck.pos);
+    t.big_duck_x = bigDuckPos.x;
+    t.big_duck_y = bigDuckPos.y;
+    t.big_duck_dir = this->bigDuck.dir == DIR_L;
+    t.big_duck_frame = this->bigDuck.frame;
     t.hens = this->numDucks;
     for (int i = 0; i < this->numDucks; i++) {
         Point pos = this->upstreamPosition(this->ducks[i].pos);
