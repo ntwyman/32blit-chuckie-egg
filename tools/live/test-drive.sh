@@ -138,6 +138,40 @@ t_play_survives_a_dead_key_sender() {
   [ "$held" = 1 ] && [ "$status" != 0 ] && [ "$status" != 141 ] && [[ "$out" == *"play: "* ]] && [ "$after" = 0 ] && [ "$left" = 0 ]
 }
 
+t_play_rejects_opposing_directions() {
+  local out status
+  printf 'level 1\n5 left+right\n' >"$TMP/opp.inputs"
+  out="$(LIVE_LANE=$((LANE_BASE + 0)) "$DRIVE" play "$TMP/opp.inputs" 2>&1)"
+  status=$?
+  [ "$status" = 2 ] && [[ "$out" == *"opp.inputs:2:"* ]] || return 1
+  printf 'level 1\n5 down+up\n' >"$TMP/opp.inputs"
+  out="$(LIVE_LANE=$((LANE_BASE + 0)) "$DRIVE" play "$TMP/opp.inputs" 2>&1)"
+  status=$?
+  [ "$status" = 2 ] && [[ "$out" == *"opp.inputs:2:"* ]]
+}
+
+t_play_notices_a_sender_that_dies_while_idle() {
+  local lane=$((LANE_BASE + 6)) state sender pid status out _
+  state="$(lane_state $lane)"
+  printf 'level 1\n5 -\n2000 -\n' >"$TMP/idle.inputs"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  LIVE_LANE=$lane "$DRIVE" play "$TMP/idle.inputs" >"$TMP/idle.out" 2>&1 &
+  pid=$!
+  for _ in $(seq 1 100); do
+    [ -e "$state/play.ready" ] && break
+    sleep 0.1
+  done
+  sleep 3
+  sender="$(pgrep -f "keypipe.py $state/play.ready")"
+  [ -n "$sender" ] && kill -KILL $sender
+  timeout 30 tail --pid="$pid" -f /dev/null
+  wait "$pid"
+  status=$?
+  out="$(cat "$TMP/idle.out")"
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$status" = 1 ] && [[ "$out" == *"key sender died"* ]]
+}
+
 t_stop_removes_the_play_files() {
   local lane=$((LANE_BASE + 6)) state
   state="$(lane_state $lane)"
@@ -837,6 +871,8 @@ check "ce-7 review: play counts a replay that runs behind the game as late" t_pl
 check "ce-7 review: play does not evaluate a players line" t_play_rejects_a_players_line_with_code_in_it
 check "ce-7 fix: play rejects a trailing plus in a key combo" t_play_rejects_a_trailing_plus
 check "ce-7 fix: play releases its keys and exits non-zero when the key sender dies" t_play_survives_a_dead_key_sender
+check "ce-7 review: play rejects opposing directions in one frame" t_play_rejects_opposing_directions
+check "ce-7 review: play notices a key sender that dies during a trailing idle segment" t_play_notices_a_sender_that_dies_while_idle
 check "ce-7 fix: stop removes play.fifo and play.ready" t_stop_removes_the_play_files
 check "ce-7 fix: play counts a stall across the level start as late" t_play_counts_a_stall_at_level_start_as_late
 check "item 2: an empty script is a no-op" t_empty_script_is_a_noop

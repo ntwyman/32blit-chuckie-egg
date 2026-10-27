@@ -73,7 +73,8 @@ Henry grabs a ladder only on one exact pixel, and the game steps on wall-clock t
 - It prints `play: <n> frames, <k> late`, and exits 1 when `k` is not 0. A late frame is one where the game logged a step after the expected one, so the script's input slipped.
 - A replay that reads a step line more than 12 ms after the game logged it counts that frame as late too, so a stalled replay fails.
 - A step that ran more than once at the start of the level counts as late too, since the level began in the middle of an update.
-- If the key sender dies, it releases every held key, prints `play: the key sender died`, exits 1, and removes its fifo and ready file.
+- It rejects a frame that presses left with right, or up with down, because the live game clears the first when the second goes down.
+- If the key sender dies, it releases every held key, prints `play: the key sender died` (also when it dies in a trailing idle segment), exits 1, and removes its fifo and ready file.
 - It stops with an error when Henry dies in a game of more than one player, because the next player's ready screen needs an A press that a script cannot give.
 - `skip` is not a key. The live game has no level skip.
 - `keypipe.py` sends the key events over one X connection. Starting `xdotool` for each event takes about 17 ms, more than half a step. It needs `python3`, `libX11` and `libXtst`.

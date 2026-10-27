@@ -408,6 +408,10 @@ parse_inputs() {
         echo "drive.sh: $file:$n: empty key in combo '$rest'" >&2
         return 2
       fi
+      if [[ "+$rest+" == *+left+* && "+$rest+" == *+right+* ]] || [[ "+$rest+" == *+up+* && "+$rest+" == *+down+* ]]; then
+        echo "drive.sh: $file:$n: the live driver cannot press opposing directions together, got '$rest'" >&2
+        return 2
+      fi
       IFS=+ read -ra parts <<<"$rest"
       for part in "${parts[@]}"; do
         case "$part" in
@@ -553,7 +557,7 @@ play_menu_press() {
 cmd_play() {
   [ $# -eq 1 ] || die "usage: drive.sh play <script.inputs>"
   need xdotool python3
-  local file steps players count keys frames=0 i
+  local file steps players count keys frames=0 i sender_rc=0
   file="$1"
   [ -f "$file" ] || die "no input script at '$file'"
   steps="$(parse_inputs "$file")" || exit 2
@@ -611,7 +615,12 @@ cmd_play() {
     done
   done <<<"$steps"
   play_set ""
+  exec {PLAY_XFD}>&-
+  PLAY_XFD=""
+  wait "$PLAY_XPID" || sender_rc=$?
+  PLAY_XPID=""
   play_cleanup
+  [ "$sender_rc" = 0 ] || die "play: the key sender died"
   restore_traps
   trap - PIPE
   echo "play: $frames frames, $PLAY_LATE late"
