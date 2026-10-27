@@ -107,10 +107,13 @@ void Game::completeLevel() {
         this->addScore(10);
         this->maybeAddExtraLife();
     }
-    p.level++;
+    // Upstream keeps the level in a byte (chuckie.c:43), so level 256 wraps to level 1. Its new bonus comes
+    // from the level before the wrap (chuckie.c:1050), which is 9,000 at that point.
+    unsigned int next = p.level + 1u;
+    p.level = next;
     memset(p.egg, 0, sizeof(p.egg));
     memset(p.grain, 0, sizeof(p.grain));
-    p.bonus = bonusForLevel(p.level);
+    p.bonus = bonusForLevel(next);
     this->loadLevel();
 }
 

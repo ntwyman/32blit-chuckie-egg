@@ -60,7 +60,7 @@ struct Henry {
 
 struct Player {
   uint8_t lives;
-  uint16_t level;
+  uint8_t level;
   uint32_t score;
   uint16_t bonus;
   uint8_t egg[16];
@@ -181,9 +181,9 @@ private:
   bool levelDone{};
   bool skipLevel{};
   bool extraLife{};
-  uint16_t startLevel{};
+  uint8_t startLevel{};
   uint32_t startScore{};
-  uint16_t currentLevel{};
+  uint8_t currentLevel{};
   uint8_t numPlayers = 1;
   uint8_t activePlayers{};
   uint8_t currentPlayer{};
