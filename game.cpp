@@ -42,7 +42,6 @@ bool Game::isTileWall(int x, int y) {
 
 
 namespace {
-// ResetPlayer in chuckie.c
 uint16_t bonusForLevel(unsigned int level) {
     unsigned int thousands = level + 1;
     return (thousands >= 10 ? 9 : thousands) * 1000;
@@ -50,7 +49,6 @@ uint16_t bonusForLevel(unsigned int level) {
 
 constexpr uint8_t START_LIVES = 5;
 constexpr uint32_t EXTRA_LIFE_SCORE = 10000;
-// Upstream's player_y < 0x11, in the port's screen rows.
 constexpr int FALL_DEATH_Y = 222;
 }
 
@@ -75,9 +73,8 @@ bool Game::henryDied() const {
     return this->isDead || this->henry.pos.y > FALL_DEATH_Y;
 }
 
-// The death branch of run_game in chuckie.c. The port also picks the next
-// player with lives left, where upstream has one player.
 void Game::loseLife() {
+    debugf("Henry died, lives left: %d\r\n", this->player().lives - 1);
     if (--this->player().lives == 0) {
         this->activePlayers--;
     }
@@ -240,7 +237,6 @@ constexpr int HUD_BONUS_DIGITS = 4;
 constexpr int HUD_TIME_X = 0x7e;
 constexpr int HUD_TIMER_LAST_X = 0x9b;
 constexpr int HUD_TIMER_DIGITS = 3;
-// DrawLives in raster_4bit.c puts the hats at x 0x1b, 4 apart, 9 rows below the score digits.
 constexpr int HUD_LIVES_X = 0x1b;
 constexpr int HUD_LIVES_Y = HUD_DIGIT_Y_TOP + 9;
 constexpr int HUD_LIVES_STRIDE = 4;
@@ -258,8 +254,6 @@ static void renderNumber(Surface &s, unsigned int number, unsigned int digits, u
     }
 }
 
-// SPRITE_HAT in spritedata.c is a pixel above a row of three. DrawLives draws
-// one hat per life and DrawLastLife erases the life being played, up to eight.
 void Game::renderLives(Surface &s) {
     unsigned int spare = this->player().lives > 0 ? this->player().lives - 1u : 0u;
     unsigned int hats = std::min(spare, HUD_LIVES_MAX);
@@ -1038,6 +1032,7 @@ void Game::maybeAddExtraLife() {
     if (this->extraLife) {
         this->extraLife = false;
         this->player().lives++;
+        debugf("Extra life, lives: %d\r\n", this->player().lives);
     }
 }
 void Game::SetScreenSize(blit::Size &size) {
@@ -1079,8 +1074,6 @@ void Game::Step(uint8_t buttons) {
             }
             break;
         case GameState::LEVEL:
-            // The frame that kills Henry ends with his death on the screen, as
-            // upstream's RenderFrame shows it. The next frame takes the life.
             if (this->henryDied()) {
                 this->loseLife();
                 if (this->state != GameState::LEVEL) {

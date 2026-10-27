@@ -80,9 +80,8 @@ void RenderFrame(void) {
   frame++;
 }
 
-// The timer-death patch makes the timer kill Henry. The abort() calls left in
-// chuckie.c are for states the game never reaches. abort() is called from the
-// game loop itself, not from another thread, so stdout is not mid-write here.
+// abort() is called from the game loop itself, not from another thread, so
+// stdout is not mid-write here.
 static void on_abort(int sig) {
   printf("frame=%zu abort=1\n", frame);
   fflush(stdout);

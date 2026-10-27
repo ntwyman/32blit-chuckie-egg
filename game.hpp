@@ -58,8 +58,6 @@ struct Henry {
   int sliding;
 };
 
-// egg[i] and grain[i] are zero while that pickup is still on the level, as in
-// upstream's playerdata_t, so a respawn rebuilds the level from them.
 struct Player {
   uint8_t lives;
   uint8_t level;
