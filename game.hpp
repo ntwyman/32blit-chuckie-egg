@@ -113,7 +113,7 @@ private:
   Player &player() { return playerData[currentPlayer]; }
   const Player &player() const { return playerData[currentPlayer]; }
   void renderBackground(blit::Surface &);
-  void renderLives(blit::Surface &);
+  void renderPlayerSlot(blit::Surface &, unsigned int player);
   void renderDucks(blit::Surface &);
   void renderHenry(blit::Surface &);
   void renderLifts(blit::Surface &);

@@ -238,29 +238,38 @@ constexpr int HUD_BONUS_DIGITS = 4;
 constexpr int HUD_TIME_X = 0x7e;
 constexpr int HUD_TIMER_LAST_X = 0x9b;
 constexpr int HUD_TIMER_DIGITS = 3;
+constexpr int HUD_SLOT_STRIDE = 0x22;
 constexpr int HUD_LIVES_X = 0x1b;
 constexpr int HUD_LIVES_Y = HUD_DIGIT_Y_TOP + 9;
 constexpr int HUD_LIVES_STRIDE = 4;
 constexpr unsigned int HUD_LIVES_MAX = 8;
 }
 
-static void renderDigit(Surface &s, unsigned int digit, unsigned int x, unsigned int y) {
-    s.sprite(SpriteDigits[digit], Point(x + X_OFFSET, y));
+static void renderDigit(Surface &s, unsigned int digit, unsigned int x, unsigned int y, const Sprite *glyphs = SpriteDigits) {
+    s.sprite(glyphs[digit], Point(x + X_OFFSET, y));
 }
 
-static void renderNumber(Surface &s, unsigned int number, unsigned int digits, unsigned int lastX, unsigned int y) {
+static void renderNumber(Surface &s, unsigned int number, unsigned int digits, unsigned int lastX, unsigned int y,
+                         const Sprite *glyphs = SpriteDigits) {
     for (unsigned int i = 0; i < digits; i++) {
-        renderDigit(s, number % 10, lastX - i * HUD_DIGIT_STRIDE, y);
+        renderDigit(s, number % 10, lastX - i * HUD_DIGIT_STRIDE, y, glyphs);
         number /= 10;
     }
 }
 
-void Game::renderLives(Surface &s) {
-    unsigned int spare = this->player().lives > 0 ? this->player().lives - 1u : 0u;
-    unsigned int hats = std::min(spare, HUD_LIVES_MAX);
+// Every player has a slot of score digits and hats. The current player's last life is the one in play, so
+// its hat is not drawn (DrawLastLife).
+void Game::renderPlayerSlot(Surface &s, unsigned int player) {
+    int slotX = player * HUD_SLOT_STRIDE;
+    const Sprite *glyphs = player == this->currentPlayer ? SpriteDigits : SpriteScoreDigits;
+    renderNumber(s, this->playerData[player].score, HUD_SCORE_DIGITS, HUD_SCORE_LAST_X + slotX, HUD_DIGIT_Y_TOP, glyphs);
+
+    unsigned int lives = this->playerData[player].lives;
+    unsigned int shown = (player == this->currentPlayer && lives > 0) ? lives - 1u : lives;
+    unsigned int hats = std::min(shown, HUD_LIVES_MAX);
     s.pen = Pen(255, 255, 0);
     for (unsigned int i = 0; i < hats; i++) {
-        int x = X_OFFSET + HUD_LIVES_X + i * HUD_LIVES_STRIDE;
+        int x = X_OFFSET + HUD_LIVES_X + slotX + i * HUD_LIVES_STRIDE;
         s.pixel(Point(x + 1, HUD_LIVES_Y));
         for (int dx = 0; dx < 3; dx++) {
             s.pixel(Point(x + dx, HUD_LIVES_Y + 1));
@@ -270,9 +279,10 @@ void Game::renderLives(Surface &s) {
 
 void Game::renderBackground(Surface &s) {
     s.sprite(SpriteScore, Point(X_OFFSET + HUD_SCORE_X, HUD_LABEL_Y_TOP));
-    s.sprite(SpriteBlank, Point(X_OFFSET + HUD_SCORE_BLANK_X, HUD_LABEL_Y_TOP));
-    renderNumber(s, this->player().score, HUD_SCORE_DIGITS, HUD_SCORE_LAST_X, HUD_DIGIT_Y_TOP);
-    this->renderLives(s);
+    s.sprite(SpriteBlank, Point(X_OFFSET + HUD_SCORE_BLANK_X + this->currentPlayer * HUD_SLOT_STRIDE, HUD_LABEL_Y_TOP));
+    for (unsigned int player = 0; player < this->numPlayers; player++) {
+        this->renderPlayerSlot(s, player);
+    }
 
     s.sprite(SpritePlayer, Point(X_OFFSET + HUD_PLAYER_X, HUD_LABEL_Y));
     renderDigit(s, this->currentPlayer + 1, HUD_PLAYER_DIGIT_X, HUD_DIGIT_Y);
