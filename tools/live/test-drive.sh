@@ -827,6 +827,9 @@ t_start_audio_rejects_bad_arguments_and_a_running_game() {
   out="$(LIVE_LANE=$lane "$DRIVE" start --audio "$TMP/missing-folder/a.raw" 2>&1)"
   [ $? = 1 ] && [[ "$out" == *"no folder"* ]] || return 1
   [ -z "$(pid_file_of "$lane")" ] || return 1
+  out="$(LIVE_LANE=$lane "$DRIVE" start --audio /proc/capture.raw 2>&1)"
+  [ $? = 1 ] && [[ "$out" == *"cannot write"* ]] || return 1
+  [ -z "$(pid_file_of "$lane")" ] || return 1
   LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
   out="$(LIVE_LANE=$lane "$DRIVE" start --audio "$TMP/late.raw" 2>&1)"
   rc=$?

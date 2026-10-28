@@ -141,6 +141,12 @@ cmd_start() {
         }
         audio="$(realpath -m -- "$2")"
         [ -d "$(dirname "$audio")" ] || die "--audio: no folder for '$audio'"
+        if [ -e "$audio" ]; then
+          [ -f "$audio" ] && [ -w "$audio" ] || die "--audio: cannot write '$audio'"
+        else
+          { : >"$audio"; } 2>/dev/null || die "--audio: cannot write '$audio'"
+          rm -f -- "$audio"
+        fi
         shift 2
         ;;
       --level | --score)
