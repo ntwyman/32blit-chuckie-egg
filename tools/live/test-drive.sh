@@ -794,6 +794,53 @@ t_start_level_refuses_a_running_game() {
   [ "$rc" = 1 ] && [[ "$out" == *"run drive.sh stop first"* ]]
 }
 
+audible() {
+  [ -n "$(tr -d '\0' <"$1" | head -c 1)" ]
+}
+
+t_start_audio_captures_a_walk_and_idle_is_silent() {
+  local lane=$((LANE_BASE + 6)) walk="$TMP/walk.raw" idle="$TMP/idle.raw"
+  printf 'level 1\n10 right\n10 -\n' >"$TMP/audio.inputs"
+  LIVE_LANE=$lane "$DRIVE" start --audio "$idle" >/dev/null 2>&1 || return 1
+  sleep 1
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  LIVE_LANE=$lane "$DRIVE" start --audio "$walk" >/dev/null 2>&1 || return 1
+  LIVE_LANE=$lane "$DRIVE" play "$TMP/audio.inputs" >/dev/null 2>&1
+  sleep 0.5
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ -s "$idle" ] && ! audible "$idle" && [ -s "$walk" ] && audible "$walk"
+}
+
+t_spectrogram_renders_a_capture_and_rejects_a_missing_one() {
+  local out
+  head -c 44100 /dev/urandom >"$TMP/noise.raw"
+  LIVE_LANE=$((LANE_BASE + 6)) "$DRIVE" spectrogram "$TMP/noise.raw" "$TMP/noise.png" >/dev/null 2>&1 || return 1
+  [ -s "$TMP/noise.png" ] || return 1
+  out="$(LIVE_LANE=$((LANE_BASE + 6)) "$DRIVE" spectrogram "$TMP/none.raw" "$TMP/none.png" 2>&1)"
+  [ $? = 1 ] && [[ "$out" == *"no audio"* ]] && [ ! -e "$TMP/none.png" ]
+}
+
+t_start_audio_rejects_bad_arguments_and_a_running_game() {
+  local lane=$((LANE_BASE + 6)) out rc
+  out="$(LIVE_LANE=$lane "$DRIVE" start --audio 2>&1)"
+  [ $? = 2 ] && [[ "$out" == *"usage"* ]] || return 1
+  out="$(LIVE_LANE=$lane "$DRIVE" start --audio "$TMP/missing-folder/a.raw" 2>&1)"
+  [ $? = 1 ] && [[ "$out" == *"no folder"* ]] || return 1
+  [ -z "$(pid_file_of "$lane")" ] || return 1
+  out="$(LIVE_LANE=$lane "$DRIVE" start --audio /proc/capture.raw 2>&1)"
+  [ $? = 1 ] && [[ "$out" == *"cannot write"* ]] || return 1
+  [ -z "$(pid_file_of "$lane")" ] || return 1
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  out="$(LIVE_LANE=$lane "$DRIVE" start --audio "$TMP/late.raw" 2>&1)"
+  rc=$?
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$rc" = 1 ] && [[ "$out" == *"not capturing audio"* ]] && [ ! -e "$TMP/late.raw" ]
+}
+
+pid_file_of() {
+  [ -e "$(lane_state "$1")/game.pid" ] && echo yes
+}
+
 wait_for_steps() {
   local log="$1" more="$2" want j
   want=$(($(grep -ac '^Step ' "$log") + more))
@@ -862,6 +909,9 @@ check "fix: an aborted keys run still runs the caller's EXIT trap" t_aborted_key
 check "fix: an aborted keys run keeps its failing exit status through the caller's EXIT trap" t_aborted_keys_keep_the_failing_exit_status
 check "ce-3: start --level rejects bad values" t_start_level_rejects_bad_values
 check "ce-3: start --level refuses a running game" t_start_level_refuses_a_running_game
+check "ce-8: start --audio captures a walk's beeps, and idle captures silence" t_start_audio_captures_a_walk_and_idle_is_silent
+check "ce-8: spectrogram renders a capture and rejects a missing one" t_spectrogram_renders_a_capture_and_rejects_a_missing_one
+check "ce-8: start --audio rejects bad arguments and a running game" t_start_audio_rejects_bad_arguments_and_a_running_game
 check "ce-6: start --score rejects bad values" t_start_score_rejects_bad_values
 check "ce-3: start --level refuses LIVE_BIN" t_start_level_refuses_live_bin
 check "item 1: a key script does not glob" t_glob_in_key_script

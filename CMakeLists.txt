@@ -73,6 +73,20 @@ if(CHUCKIE_PARITY)
     DEPENDS ${UPSTREAM}/chuckie.c ${PARITY}/apply-patches.sh ${PARITY_PATCHES}
     COMMENT "Applying tools/parity/patches to upstream chuckie.c"
   )
+  # Upstream's chuckie.h has no include guard, and the driver includes both chuckie.c and audio.c. Copies in
+  # the build folder hold a guarded chuckie.h and an audio.c that finds it, so the driver reads audio.c's own
+  # sound_start state. Rewriting chuckie.h only when it changes keeps a second configure from recompiling.
+  file(READ ${UPSTREAM}/chuckie.h CHUCKIE_H)
+  set(CHUCKIE_H_GUARDED "#pragma once\n${CHUCKIE_H}")
+  set(CHUCKIE_H_OLD "")
+  if(EXISTS ${PARITY_GEN}/chuckie.h)
+    file(READ ${PARITY_GEN}/chuckie.h CHUCKIE_H_OLD)
+  endif()
+  if(NOT CHUCKIE_H_OLD STREQUAL CHUCKIE_H_GUARDED)
+    file(WRITE ${PARITY_GEN}/chuckie.h "${CHUCKIE_H_GUARDED}")
+  endif()
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${UPSTREAM}/chuckie.h)
+  configure_file(${UPSTREAM}/audio.c ${PARITY_GEN}/audio.c COPYONLY)
   add_executable(parity-original ${PARITY}/original_driver.c ${UPSTREAM}/leveldata.c ${PARITY_GEN}/chuckie.c)
   set_source_files_properties(${PARITY_GEN}/chuckie.c PROPERTIES HEADER_FILE_ONLY ON)
   target_include_directories(parity-original PRIVATE ${PARITY_GEN} ${PARITY} ${UPSTREAM})
@@ -87,10 +101,15 @@ if(CHUCKIE_PARITY)
   target_compile_definitions(parity-gameover PRIVATE CHUCKIE_PARITY)
   target_link_libraries(parity-gameover BlitEngine)
 
+  add_executable(parity-sound ${PARITY}/sound_test.cpp game.cpp levels.cpp sprites.cpp)
+  target_include_directories(parity-sound PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_compile_definitions(parity-sound PRIVATE CHUCKIE_PARITY)
+  target_link_libraries(parity-sound BlitEngine)
+
   add_executable(parity-clock ${PARITY}/clock_test.cpp)
   target_include_directories(parity-clock PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-  add_custom_target(parity DEPENDS parity-port parity-original parity-clock parity-gameover)
+  add_custom_target(parity DEPENDS parity-port parity-original parity-clock parity-gameover parity-sound)
 endif()
 
 # The SDK's web shell uses FS and IDBFS from its preRun, but newer Emscripten

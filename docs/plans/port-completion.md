@@ -499,6 +499,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 - [ ] Edit `game.cpp` and `game.hpp`.
 - [ ] Edit `chuckie_egg.cpp`.
+- [ ] Edit `CMakeLists.txt` for the parity build only, with a guarded copy of upstream's `chuckie.h` and a copy of `audio.c` in the build folder, so the original driver can include both `chuckie.c` and `audio.c`.
 
 **Build.**
 
@@ -519,7 +520,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 - [ ] Lane 2. Climb a ladder. Save `climb-audio.png`. Pass when the beep pitch differs from walking.
 - [ ] Lane 3. Jump. Save `jump-audio.png`. Pass when the pitch follows the original's jump table.
 - [ ] Lane 4. Take an egg. Save `egg-audio.png`. Pass when a noise burst starts on that frame.
-- [ ] Lane 5. Take grain. Save `grain-audio.png`. Pass when a shorter noise burst starts on that frame.
+- [ ] Lane 5. Take grain. Save `grain-audio.png`. Pass when a noise burst of the same length as an egg's, at a higher rate, starts on that frame. Upstream's `audio.c` gives both the one `noise_vol` envelope, and `sound_start` changes only the rate by `note & 3`.
 - [ ] Lane 6. Stand still for 5 seconds. Save `idle-audio.png`. Pass when no sound plays.
 - [ ] Lane 7. Reach game over. Save `game-over-audio.png`. Pass when sound stops.
 - [ ] Lane 8. Play the web build in Playwright's headless Chromium and read its console log. Save `web-audio.png`. Pass when `debugf` shows a beep trigger on the walking frames.

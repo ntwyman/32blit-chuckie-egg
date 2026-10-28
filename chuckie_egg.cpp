@@ -16,6 +16,7 @@ Game game(CHUCKIE_START_LEVEL, CHUCKIE_START_SCORE);
 void init() {
   set_screen_mode(ScreenMode::hires);
   game.SetScreenSize(screen.bounds);
+  game.InitAudio();
   screen.sprites = Surface::load(asset_sprites);
 }
 
@@ -46,6 +47,14 @@ void update(uint32_t time) {
   uint32_t steps = frame_clock.due(now());
   for (uint32_t i = 0; i < steps; i++) {
     game.Step(readButtons());
+#ifndef TARGET_32BLIT_HW
+    if (game.BeepNote() != NO_NOTE) {
+      debugf("Beep note %d\r\n", game.BeepNote());
+    }
+    if (game.NoiseNote() != NO_NOTE) {
+      debugf("Noise note %d\r\n", game.NoiseNote());
+    }
+#endif
   }
   if (steps > 0) {
     step_count += steps;

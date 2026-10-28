@@ -1,0 +1,10 @@
+# Ride the level 3 lift almost to the top, walk right off it and fall down the empty shaft off the bottom.
+# The fall is long enough that MakeSound's note 0x6e - 2 * player_fall is -2 on the death frame, so sound_start's
+# clamp to note 0 decides the period.
+level 3
+5 -
+1 left+jump
+12 left
+169 -
+40 right
+25 -

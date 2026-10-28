@@ -21,6 +21,12 @@ static inline void trace_write(FILE *out, int frame, const FrameTrace *t) {
     fprintf(out, " lift_x=%d lift_y0=%d lift_y1=%d", (int)t->lift_x,
             (int)t->lift_y[0], (int)t->lift_y[1]);
   }
+  if (t->has_beep) {
+    fprintf(out, " beep_note=%d beep_period=%d", (int)t->beep_note, (int)t->beep_period);
+  }
+  if (t->has_noise) {
+    fprintf(out, " noise_note=%d noise_period=%d", (int)t->noise_note, (int)t->noise_period);
+  }
   fprintf(out, " duck_timer=%d current_duck=%d big_duck_x=%d big_duck_y=%d big_duck_dir=%d big_duck_frame=%d hens=%d",
           (int)t->duck_timer, (int)t->current_duck, (int)t->big_duck_x, (int)t->big_duck_y,
           (int)t->big_duck_dir, (int)t->big_duck_frame, (int)t->hens);

@@ -9,9 +9,11 @@
 
 #include <cstdio>
 
+static blit::AudioChannel host_channels[CHANNEL_COUNT];
 static blit::APIConst host_api = [] {
   blit::APIConst api{};
   api.debug = [](const char *) {};
+  api.channels = host_channels;
   return api;
 }();
 static blit::APIData host_api_data;

@@ -10,6 +10,7 @@ tools/parity/run.sh --script idle
 tools/parity/run.sh --record held-through-death
 tools/parity/run.sh --clock
 tools/parity/run.sh --game-over
+tools/parity/run.sh --sound
 tools/parity/run.sh --self-test
 ```
 
@@ -27,6 +28,8 @@ The last line of a diverging report, `every difference: <n> field values over <m
 `--clock` runs `clock_test`, which feeds `FrameClock::due` fixed timestamps and checks how many `Game::Step` calls it returns. The trace diff cannot see the clock, because it calls `Step` once per input frame. `--all` runs it after the scripts.
 
 `--game-over` runs `game_over_test`, which plays five deaths and checks that A does not leave the game-over screen for its first 67 steps (about two seconds), and that a fresh press then does. It also plays a game that reaches level 2 to game over and checks that the next game starts on level 1 with level 1's bonus, lives, and score, where upstream starts it with the bonus of the level reached (see "Two quirks the port does not copy"). The trace diff cannot see the screen, because the original starts a new game at once. `--all` runs it after the clock test.
+
+`--sound` runs `sound_test`, which drives `Game` and checks what it writes to the 32Blit channels, which the trace cannot see: the beep's waveform, volume, envelope, trigger and pitch in Hz, the noise's pitch, volume, six-step hold and release, that the beep sits on channel 0 and the noise on channel 1, and that a noise nothing releases ends within 2.5 s when only the mixer runs (a hidden browser tab stops the main loop). `--all` runs it last. `scripts/note-clamp-long-fall.inputs` pins a fall long enough that `MakeSound`'s note is -2 and `sound_start` clamps it to 0.
 
 `--self-test` checks the comparator on fixed traces. CI runs it before `--all`.
 
@@ -73,7 +76,11 @@ The build copies `chuckie.c` and applies `patches/*.patch` to the copy in name o
 
 `Game::Snapshot`, `Game::upstreamPosition`, and the `trace.h` include compile only when `CHUCKIE_PARITY` is defined. Only the `parity-port` target defines it, so device and web builds hold no trace code.
 
+Two optional field pairs appear only on a frame that starts a sound. `beep_note` and `beep_period` are the note `MakeSound` passes to `sound_start` (`chuckie.c:690`) and the half-period in samples that `audio.c` derives from it, at 44,100 Hz. `noise_note` and `noise_period` are the same for the noise `squidge` starts when Henry takes an egg (note 6) or grain (note 5). The original driver includes upstream's own `audio.c` and reads `tone_period` after `sound_start` runs, so a wrong lookup table, a wrong 1.2 factor, or a wrong divisor in the port shows as a differing period. A frame with no sound has none of these fields on either side.
+
 The fields are Henry's x, y, tile, partial position, and mode, whether he died this frame, then the score, lives, bonus, timer, the player whose turn it is, and the level as the HUD numbers it minus one (`current_level`), then the lift positions on a level with a lift, the duck timer, the hen countdown that picks which hen moves next (`current_duck`), the mother duck's position, direction and wing frame, the hen count, and each hen's position and mode. The mother duck's position and wing frame are traced on every level, because upstream keeps the duck in its cage on levels 1 to 8 and flaps its wings there. Hens past the level's count are left out, because both games keep stale values there.
+
+The port plays the mixer's nominal 44.1 kHz mono, as upstream's `audio-alsa.c` does. Upstream's SDL front end opens a stereo device and fills it with mono samples, so it plays an octave high. The port does not copy that.
 
 ## Building without the 32Blit engine
 
