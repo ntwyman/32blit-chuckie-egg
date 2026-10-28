@@ -149,7 +149,7 @@ private:
   void renderLifts(blit::Surface &);
   void renderBigBird(blit::Surface &);
   void renderTitle(blit::Surface &);
-  void renderTable(blit::Surface &, const HighScores &, int highlight);
+  void renderTable(blit::Surface &, const HighScores &, int highlight, const char *highlightName);
   void renderNameEntry(blit::Surface &);
   void beginTitle(unsigned int page);
   void startEntry(unsigned int player);

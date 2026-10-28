@@ -1510,7 +1510,7 @@ void Game::renderTitle(Surface &s) {
     }
     if (this->titlePage == 1) {
         drawCentred(s, "HIGH SCORES", 44, YELLOW);
-        this->renderTable(s, this->scores, -1);
+        this->renderTable(s, this->scores, -1, "");
         const int footerX = (s.bounds.w - 16 * CELL) / 2;
         drawText(s, "Press ", footerX, 196, YELLOW);
         drawText(s, "A", footerX + 6 * CELL, 196, CYAN);
@@ -1528,7 +1528,7 @@ void Game::renderTitle(Surface &s) {
     drawCentred(s, "Based on the original by A&F Software", 206 + LINE, YELLOW);
 }
 
-void Game::renderTable(Surface &s, const HighScores &table, int highlight) {
+void Game::renderTable(Surface &s, const HighScores &table, int highlight, const char *highlightName) {
     const int top = highlight >= 0 ? 30 : 62;
     for (int i = 0; i < HS_ENTRIES; i++) {
         char buf[16];
@@ -1538,7 +1538,7 @@ void Game::renderTable(Surface &s, const HighScores &table, int highlight) {
         drawRight(s, buf, 96, y, pen);
         sprintf(buf, "%u", (unsigned)table.At(i).score);
         drawRight(s, buf, 176, y, pen);
-        drawText(s, table.At(i).name, 192, y, pen);
+        drawText(s, i == highlight ? highlightName : table.At(i).name, 192, y, pen);
     }
 }
 
@@ -1553,7 +1553,7 @@ void Game::renderNameEntry(Surface &s) {
     drawCentred(s, buf, 8, YELLOW);
     HighScores preview = this->scores;
     int rank = preview.Insert(score, this->entryName);
-    this->renderTable(s, preview, rank);
+    this->renderTable(s, preview, rank, this->entryName);
     if ((this->titleSteps / 10) % 2 == 0 && rank >= 0) {
         s.pen = WHITE;
         s.rectangle(Rect(192 + this->entryCursor * CELL, 30 + rank * LINE + 9, 6, 1));

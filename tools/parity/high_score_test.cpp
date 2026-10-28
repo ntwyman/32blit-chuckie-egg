@@ -117,16 +117,31 @@ static void corruptSaves() {
   rejects("an old or new version falls back", [](uint8_t *b) { b[4] = 2; }, HS_SAVE_SIZE);
   rejects("a flipped score bit falls back", [](uint8_t *b) { b[7] ^= 0x10; }, HS_SAVE_SIZE);
   rejects("a flipped checksum bit falls back", [](uint8_t *b) { b[HS_SAVE_SIZE - 1] ^= 1; }, HS_SAVE_SIZE);
-  rejects("a name with no end falls back", [](uint8_t *b) { memset(b + 10, 'A', 8); }, HS_SAVE_SIZE);
-  // The checksum would still be wrong, so these two fix it up the way a writer with a bug would.
-  uint8_t crafted[HS_SAVE_SIZE];
-  memcpy(crafted, good, sizeof(crafted));
-  crafted[6 + 3] = 0xff;
-  crafted[6 + 2] = 0xff;
-  crafted[6 + 1] = 0xff;
-  crafted[6] = 0xff;
-  HighScores into;
-  expect(!into.Decode(crafted, sizeof(crafted)), "a save with a bad checksum and a huge score falls back");
+  // The rest keep the checksum right, so each one reaches the rule it names.
+  auto sealed = [&](const char *what, void (*corrupt)(uint8_t *)) {
+    uint8_t bad[HS_SAVE_SIZE];
+    memcpy(bad, good, sizeof(bad));
+    corrupt(bad);
+    uint32_t hash = 2166136261u;
+    for (size_t i = 0; i < HS_SAVE_SIZE - 4; i++) {
+      hash = (hash ^ bad[i]) * 16777619u;
+    }
+    for (int i = 0; i < 4; i++) {
+      bad[HS_SAVE_SIZE - 4 + i] = (uint8_t)(hash >> (8 * i));
+    }
+    HighScores into;
+    into.Insert(123456, "KEEP");
+    bool ok = !into.Decode(bad, sizeof(bad)) && named(into, 0, 325000, "NIK") && named(into, 9, 50, "A&F");
+    expect(ok, what);
+  };
+  expect(HighScores().Decode(good, sizeof(good)), "the unmodified save is accepted, so each rejection below is its own rule");
+  sealed("a name with no end falls back", [](uint8_t *b) { memset(b + 10, 'A', 8); });
+  sealed("a name with a lowercase letter falls back", [](uint8_t *b) { b[10] = 'a'; });
+  sealed("an empty name falls back", [](uint8_t *b) { b[10] = 0; });
+  sealed("a byte after the end of a name falls back", [](uint8_t *b) { b[10 + 7] = 'Z'; });
+  sealed("a score over 99,999,999 falls back", [](uint8_t *b) { b[6] = 0xff; b[7] = 0xff; b[8] = 0xff; b[9] = 0xff; });
+  sealed("an unsorted table falls back", [](uint8_t *b) { b[18] = 0x80; b[19] = 0x1a; b[20] = 0x06; b[21] = 0; });
+  sealed("a nonzero reserved byte falls back", [](uint8_t *b) { b[5] = 1; });
   uint8_t zeros[HS_SAVE_SIZE] = {};
   expect(!HighScores().Decode(zeros, sizeof(zeros)), "an all-zero save falls back");
 }
