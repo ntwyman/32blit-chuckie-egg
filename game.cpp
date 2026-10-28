@@ -886,7 +886,8 @@ static uint16_t noiseHz(int period) {
 }
 
 // Upstream's 10 ms volume steps (audio.c:beep_vol, noise_vol) become ADSR ramps, with each voice's channel
-// volume set so the envelope area matches upstream's.
+// volume set so the beep's envelope area matches upstream's and the noise's rms does. 32Blit's noise has a
+// standard deviation of 65536 / sqrt(12), against upstream's +-0x3fff, so 0xddb3 gives 0x3fff rms.
 void Game::InitAudio() {
     AudioChannel &beep = channels[BEEP_CHANNEL];
     beep.waveforms = Waveform::SQUARE;
@@ -896,7 +897,7 @@ void Game::InitAudio() {
     beep.sustain = 0;
     AudioChannel &noise = channels[NOISE_CHANNEL];
     noise.waveforms = Waveform::NOISE;
-    noise.volume = 0x8000;
+    noise.volume = 0xddb3;
     noise.attack_ms = 10;
     noise.decay_ms = 1;
     noise.sustain = 0xffff;
