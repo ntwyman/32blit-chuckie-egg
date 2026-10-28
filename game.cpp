@@ -885,15 +885,14 @@ static uint16_t noiseHz(int period) {
     return static_cast<uint16_t>((UPSTREAM_RATE + cycle / 2) / cycle);
 }
 
-// Upstream's 10 ms volume steps (audio.c:beep_vol, noise_vol) become ADSR ramps. The beep's channel volume
-// makes its envelope area match upstream's. The noise's gain keeps its rms close to upstream's: 32Blit's
-// generator returns up to +-65535 into the int16_t AudioChannel::noise, so 8.3 percent of its samples wrap and
-// its standard deviation is 16,910. At 0xddb3 the voice's rms is 14,644, which is 1.0 dB under upstream's total
-// rms (16,383) and 0.33 dB under its rms about the mean (15,213). The second is the one to match, because
-// upstream's LFSR noise carries a DC offset that nobody hears.
-// The noise decays from full scale to 0 over 2 s instead of holding at full scale, so a noise burst that
-// Step never releases (a hidden browser tab stops the main loop but not the audio) fades out in 2 s rather than
-// hissing. The decay lowers the rms over the 180 ms hold to 0.9554 of a flat level, so the volume is raised to 0xe80c.
+// Upstream's 10 ms volume steps (audio.c:beep_vol, noise_vol) become ADSR ramps. The beep's volume matches its
+// envelope area to upstream's. The noise's volume matches its rms about the mean: 32Blit's generator returns up
+// to +-65535 into the int16_t AudioChannel::noise, so 8.3 percent of samples wrap and the standard deviation is
+// 16,910. Upstream's LFSR noise has a DC offset nobody hears, so its rms about the mean (15,213), not its total
+// rms (16,383), is the target. 0xddb3 gives 14,644 over a flat hold, 0.33 dB under that target and 1.0 dB under the total.
+// The noise decays to 0 over 2 s instead of sustaining, so a burst that Step never releases (a hidden browser
+// tab stops the main loop but not the audio) fades out rather than hissing. The decay costs 0.9554 of the rms
+// over the 180 ms hold, so the volume is raised to 0xe80c.
 void Game::InitAudio() {
     AudioChannel &beep = channels[BEEP_CHANNEL];
     beep.waveforms = Waveform::SQUARE;

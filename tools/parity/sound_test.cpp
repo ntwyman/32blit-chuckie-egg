@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2020-2026 ntwyman
 
-// The trace diff sees the note and period of a sound, not what Game does with 32Blit's channels. This drives
-// Game and checks the channels against the arithmetic in docs: the beep's pitch, envelope and trigger, the
-// noise's pitch, hold and release, and that the noise ends by itself when no Step releases it.
+// The trace diff sees a sound's note and period, not what Game does with 32Blit's channels. This drives Game and
+// checks the channels: the beep's pitch, envelope and trigger, the noise's pitch, hold and release, and that the
+// noise ends by itself when no Step releases it.
 
 #include "game.hpp"
 #include "engine/api_private.hpp"

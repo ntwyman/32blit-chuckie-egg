@@ -75,7 +75,7 @@ if(CHUCKIE_PARITY)
   )
   # Upstream's chuckie.h has no include guard, and the driver includes both chuckie.c and audio.c. Copies in
   # the build folder hold a guarded chuckie.h and an audio.c that finds it, so the driver reads audio.c's own
-  # sound_start state. chuckie.h is rewritten only when its content changes, so a second configure compiles nothing.
+  # sound_start state. Rewriting chuckie.h only when it changes keeps a second configure from recompiling.
   file(READ ${UPSTREAM}/chuckie.h CHUCKIE_H)
   set(CHUCKIE_H_GUARDED "#pragma once\n${CHUCKIE_H}")
   set(CHUCKIE_H_OLD "")
