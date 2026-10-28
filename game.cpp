@@ -814,6 +814,146 @@ void Game::moveBigDuck() {
     bd.frame = !bd.frame;
 }
 
+// Upstream's sound units (audio.c). Both voices run at 44,100 Hz. A period counts samples, and a voice
+// changes level every period + 1 samples (audio.c:mix_buffer). The port rescales to Hz for 32Blit.
+static const int UPSTREAM_RATE = 44100;
+
+static const uint8_t PERIOD_LOOKUP[256] = {
+    178, 176, 173, 171, 168, 166, 163, 161,
+    159, 156, 154, 152, 150, 148, 145, 143,
+    141, 139, 137, 135, 133, 131, 129, 128,
+    126, 124, 122, 120, 119, 117, 115, 114,
+    112, 110, 109, 107, 106, 104, 103, 101,
+    100, 98, 97, 95, 94, 93, 91, 90,
+    89, 88, 86, 85, 84, 83, 81, 80,
+    79, 78, 77, 76, 75, 74, 72, 71,
+    70, 69, 68, 67, 66, 65, 64, 64,
+    63, 62, 61, 60, 59, 58, 57, 57,
+    56, 55, 54, 53, 53, 52, 51, 50,
+    50, 49, 48, 47, 47, 46, 45, 45,
+    44, 44, 43, 42, 42, 41, 40, 40,
+    39, 39, 38, 38, 37, 37, 36, 35,
+    35, 34, 34, 33, 33, 32, 32, 32,
+    31, 31, 30, 30, 29, 29, 28, 28,
+    28, 27, 27, 26, 26, 26, 25, 25,
+    25, 24, 24, 23, 23, 23, 22, 22,
+    22, 22, 21, 21, 21, 20, 20, 20,
+    19, 19, 19, 19, 18, 18, 18, 17,
+    17, 17, 17, 16, 16, 16, 16, 16,
+    15, 15, 15, 15, 14, 14, 14, 14,
+    14, 13, 13, 13, 13, 13, 12, 12,
+    12, 12, 12, 12, 11, 11, 11, 11,
+    11, 11, 10, 10, 10, 10, 10, 10,
+    9, 9, 9, 9, 9, 9, 9, 8,
+    8, 8, 8, 8, 8, 8, 8, 8,
+    7, 7, 7, 7, 7, 7, 7, 7,
+    7, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 5, 5, 5, 5,
+    5, 5, 5, 5, 5, 5, 5, 5,
+    4, 4, 4, 4, 4, 4, 4, 4
+};
+
+// audio.c:sound_start, channel 1.
+static int beepPeriod(int note) {
+    note = std::min(std::max(note, 0), 255);
+    return static_cast<int>(PERIOD_LOOKUP[note] * 1.2);
+}
+
+// audio.c:sound_start, channel 0.
+static int noisePeriod(int note) {
+    switch (note & 3) {
+        case 0:
+            return UPSTREAM_RATE / 7000;
+        case 1:
+            return UPSTREAM_RATE / 3500;
+        case 2:
+            return UPSTREAM_RATE / 1750;
+        default:
+            return 0;
+    }
+}
+
+// A square wave flips every period + 1 samples, so a full cycle is twice that.
+static uint16_t beepHz(int period) {
+    int half = period + 1;
+    return static_cast<uint16_t>((UPSTREAM_RATE + half) / (2 * half));
+}
+
+// The noise voice draws a new level every period + 1 samples, and 32Blit draws one per cycle.
+static uint16_t noiseHz(int period) {
+    int cycle = period + 1;
+    return static_cast<uint16_t>((UPSTREAM_RATE + cycle / 2) / cycle);
+}
+
+// Upstream's 10 ms volume steps (audio.c:beep_vol, noise_vol) become ADSR ramps, with each voice's channel
+// volume set so the envelope area matches upstream's.
+void Game::startBeep(int note) {
+    int period = beepPeriod(note);
+    this->beepNote = note;
+    AudioChannel &c = channels[BEEP_CHANNEL];
+    c.waveforms = Waveform::SQUARE;
+    c.frequency = beepHz(period);
+    c.volume = 0xbfff;
+    c.attack_ms = 1;
+    c.decay_ms = 19;
+    c.sustain = 0;
+    c.trigger_attack();
+}
+
+void Game::startNoise(int note) {
+    int period = noisePeriod(note);
+    this->noiseNote = note;
+    AudioChannel &c = channels[NOISE_CHANNEL];
+    c.waveforms = Waveform::NOISE;
+    c.frequency = noiseHz(period);
+    c.volume = 0x8000;
+    c.attack_ms = 10;
+    c.decay_ms = 1;
+    c.sustain = 0xffff;
+    c.release_ms = 20;
+    c.trigger_attack();
+    this->noiseHold = NOISE_HOLD_STEPS;
+}
+
+void Game::releaseNoise() {
+    if (this->noiseHold > 0 && --this->noiseHold == 0) {
+        channels[NOISE_CHANNEL].trigger_release();
+    }
+}
+
+// chuckie.c:MakeSound
+void Game::makeSound() {
+    const Henry &h = this->henry;
+    if (h.speed.x == 0 && h.speed.y == 0) {
+        return;
+    }
+    if ((this->duckTimer & 1) != 0) {
+        return;
+    }
+    int note = 0;
+    switch (h.state) {
+        case HenryState::WALK:
+            note = 64;
+            break;
+        case HenryState::CLIMB:
+            note = 96;
+            break;
+        case HenryState::JUMP:
+            note = h.falling >= 0x0b ? 0xbe - h.falling * 2 : 0x96 + h.falling * 2;
+            break;
+        case HenryState::FALL:
+            note = 0x6e - h.falling * 2;
+            break;
+        case HenryState::LIFT:
+            if (h.speed.x == 0) {
+                return;
+            }
+            note = 0x64;
+            break;
+    }
+    this->startBeep(note);
+}
+
 static int popcount(unsigned int val) {
     return std::bitset<32>(val).count();
 }
@@ -986,7 +1126,7 @@ void Game::animateHenry(Henry &h) {
         this->eggsLeft--;
         debugf("Eggs left: %d\r\n", this->eggsLeft);
         uint8_t eggIndex = tile >> 4;
-        //        squidge(6);
+        this->startNoise(6);
         player.egg[eggIndex]--;
         this->setTile(x, y, 0);
         uint16_t score = (this->currentLevel / 4) + 1;
@@ -995,7 +1135,7 @@ void Game::animateHenry(Henry &h) {
         }
         this->addScore( score * 100);
     } else {
-        //        squidge(5);
+        this->startNoise(5);
         uint8_t grainIndex = tile >> 4;
         player.grain[grainIndex]--;
         this->setTile(x, y, 0);
@@ -1114,6 +1254,9 @@ void Game::Step(uint8_t buttons) {
         debugf("State change: %s\r\n", stateToString(h.state));
         h.priorState = h.state;
     }
+    this->beepNote = NO_NOTE;
+    this->noiseNote = NO_NOTE;
+    this->releaseNoise();
     this->newDown = (this->rawDown ^ buttons) & buttons;
     this->rawDown = buttons;
     this->ignored &= buttons;
@@ -1154,6 +1297,7 @@ void Game::Step(uint8_t buttons) {
                 this->completeLevel();
             }
             this->moveHenry();
+            this->makeSound();
             this->moveLifts();
             this->moveDucks();
             this->maybeAddExtraLife();
@@ -1203,6 +1347,16 @@ FrameTrace Game::Snapshot() {
         t.lift_x = this->liftX;
         t.lift_y[0] = this->liftY[0];
         t.lift_y[1] = this->liftY[1];
+    }
+    t.has_beep = this->beepNote != NO_NOTE;
+    if (t.has_beep) {
+        t.beep_note = this->beepNote;
+        t.beep_period = beepPeriod(this->beepNote);
+    }
+    t.has_noise = this->noiseNote != NO_NOTE;
+    if (t.has_noise) {
+        t.noise_note = this->noiseNote;
+        t.noise_period = noisePeriod(this->noiseNote);
     }
     t.duck_timer = this->duckTimer;
     t.current_duck = this->currentDuck;

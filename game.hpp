@@ -25,6 +25,13 @@ enum GameState {HOW_MANY, READY_PLAYER, LEVEL, GAME_OVER};
 #define MAX_PLAYERS 4
 #define NUM_EGGS 12
 
+// chuckie.c puts the noise on channel 0 and the beep on channel 1. The port puts them the other way round.
+#define BEEP_CHANNEL 0
+#define NOISE_CHANNEL 1
+// audio.c's noise lasts 200 ms, and the port holds it for six 30 ms steps before its 20 ms release.
+#define NOISE_HOLD_STEPS 6
+#define NO_NOTE INT32_MIN
+
 /*** Game interface.  */
 #define BUTTON_RIGHT 0x01u
 #define BUTTON_LEFT 0x02u
@@ -128,6 +135,10 @@ private:
   void moveDucks();
   void moveLifts();
   void detectCollisions();
+  void makeSound();
+  void startBeep(int note);
+  void startNoise(int note);
+  void releaseNoise();
 
   bool startJump(Henry &);
   void jumpHenry(Henry &);
@@ -188,6 +199,9 @@ private:
   uint8_t activePlayers{};
   uint8_t currentPlayer{};
   uint8_t eggsLeft{};
+  int beepNote = NO_NOTE;
+  int noiseNote = NO_NOTE;
+  uint8_t noiseHold{};
   uint8_t duckTimer{};
   uint8_t duckRate{};
   uint8_t pauseDuckBonus{};

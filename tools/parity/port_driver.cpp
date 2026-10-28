@@ -22,10 +22,13 @@ static void host_debug(const char *message) {
 
 // The engine library sends debugf through blit::api, which only a platform
 // layer defines. The SDL one owns main() and opens a window, so the driver
-// defines the two objects itself with nothing but the debug hook.
+// defines the two objects itself with nothing but the debug hook and the
+// audio channels the game starts sounds on.
+static blit::AudioChannel host_channels[CHANNEL_COUNT];
 static blit::APIConst host_api = [] {
   blit::APIConst api{};
   api.debug = host_debug;
+  api.channels = host_channels;
   return api;
 }();
 static blit::APIData host_api_data;

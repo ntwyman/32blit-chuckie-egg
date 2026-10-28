@@ -30,6 +30,7 @@ SMOKE_ATTEMPTS="$(bounded_var LIVE_SMOKE_ATTEMPTS "${LIVE_SMOKE_ATTEMPTS:-5}" 10
 WINDOW_WAIT="$(bounded_var LIVE_WINDOW_WAIT "${LIVE_WINDOW_WAIT:-10}" 3600)"
 SMOKE_FPS=100
 SMOKE_SCREEN=640x480x24
+AUDIO_RATE=22050
 
 export DISPLAY=":$DISPLAY_NUM"
 export SDL_AUDIODRIVER=dummy
@@ -130,12 +131,21 @@ build_variant() {
 }
 
 cmd_start() {
-  local level="" score="" variant=0
+  local level="" score="" variant=0 audio=""
   while [ $# -gt 0 ]; do
     case "$1" in
+      --audio)
+        [ $# -ge 2 ] && [ -n "$2" ] || {
+          echo "usage: drive.sh start [--level <n>] [--score <n>] [--audio <file>]" >&2
+          exit 2
+        }
+        audio="$(realpath -m -- "$2")"
+        [ -d "$(dirname "$audio")" ] || die "--audio: no folder for '$audio'"
+        shift 2
+        ;;
       --level | --score)
         [ $# -ge 2 ] || {
-          echo "usage: drive.sh start [--level <n>] [--score <n>]" >&2
+          echo "usage: drive.sh start [--level <n>] [--score <n>] [--audio <file>]" >&2
           exit 2
         }
         if [ "$1" = --level ]; then
@@ -155,7 +165,7 @@ cmd_start() {
         shift 2
         ;;
       *)
-        echo "usage: drive.sh start [--level <n>] [--score <n>]" >&2
+        echo "usage: drive.sh start [--level <n>] [--score <n>] [--audio <file>]" >&2
         exit 2
         ;;
     esac
@@ -166,6 +176,7 @@ cmd_start() {
   need Xvfb xdotool stdbuf
   if game_running; then
     [ "$variant" = 0 ] || die "a game already runs on display $DISPLAY and may be on another level or score; run drive.sh stop first"
+    [ -z "$audio" ] || die "a game already runs on display $DISPLAY and is not capturing audio; run drive.sh stop first"
     echo "start: game already running (pid $(pid_of "$STATE/game.pid"), display $DISPLAY)"
     return 0
   fi
@@ -196,7 +207,12 @@ cmd_start() {
       die "Xvfb did not answer on $DISPLAY within ${WINDOW_WAIT}s, see $STATE/xvfb.log"
     fi
   fi
-  stdbuf -oL "$BIN" >"$STATE/game.log" 2>&1 &
+  if [ -n "$audio" ]; then
+    rm -f -- "$audio"
+    SDL_AUDIODRIVER=disk SDL_DISKAUDIOFILE="$audio" stdbuf -oL "$BIN" >"$STATE/game.log" 2>&1 &
+  else
+    stdbuf -oL "$BIN" >"$STATE/game.log" 2>&1 &
+  fi
   record_pid "$STATE/game.pid" $!
   local i found=0
   for i in $(seq 1 $((WINDOW_WAIT * 10))); do
@@ -794,6 +810,16 @@ cmd_golden() {
   echo "golden: wrote $1 from frame $((${frames#* } + 1))"
 }
 
+cmd_spectrogram() {
+  [ $# -eq 2 ] || die "usage: drive.sh spectrogram <audio.raw> <path.png>"
+  need ffmpeg
+  [ -s "$1" ] || die "spectrogram: no audio in '$1'"
+  mkdir -p "$(dirname "$2")"
+  ffmpeg -loglevel error -y -f s16le -ar "$AUDIO_RATE" -ac 1 -i "$1" \
+    -lavfi "showspectrumpic=s=1280x512:legend=1:scale=log:fscale=lin:stop=3000" "$2" || die "spectrogram: ffmpeg failed on '$1'"
+  echo "spectrogram: wrote $2 from $(($(stat -c %s "$1") / 2)) samples at ${AUDIO_RATE} Hz"
+}
+
 main() {
   local cmd="${1:-}"
   [ $# -gt 0 ] && shift
@@ -806,8 +832,9 @@ main() {
     stop) cmd_stop "$@" ;;
     smoke) cmd_smoke "$@" ;;
     golden) cmd_golden "$@" ;;
+    spectrogram) cmd_spectrogram "$@" ;;
     *)
-      echo "usage: drive.sh start [--level <n>] [--score <n>] | keys <script> | play <script.inputs> | shot <path> | record <seconds> <path> | stop | smoke | golden <path>" >&2
+      echo "usage: drive.sh start [--level <n>] [--score <n>] [--audio <file>] | spectrogram <audio.raw> <path.png> | keys <script> | play <script.inputs> | shot <path> | record <seconds> <path> | stop | smoke | golden <path>" >&2
       exit 2
       ;;
   esac

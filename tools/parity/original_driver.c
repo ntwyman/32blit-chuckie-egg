@@ -5,6 +5,9 @@
 // file includes that copy, so the trace can read the file-static Henry state.
 
 #include "chuckie.c"
+#define sound_start audio_sound_start
+#include "audio.c"
+#undef sound_start
 #include "inputs.h"
 #include "trace_write.h"
 
@@ -30,7 +33,22 @@ static raster_hooks no_raster = {
 };
 raster_hooks *raster = &no_raster;
 
-void sound_start(int pitch, int kind) {}
+static int heard_beep, heard_noise;
+static int beep_note, beep_period, noise_note, noise_period;
+
+void sound_start(int note, int channel) {
+  audio_sound_start(note, channel);
+  if (channel == 1) {
+    heard_beep = 1;
+    beep_note = note;
+    beep_period = tone_period[1];
+  } else {
+    heard_noise = 1;
+    noise_note = note;
+    noise_period = tone_period[0];
+  }
+}
+
 void RenderBackground(void) {}
 
 static int32_t digits(const uint8_t *d, int n) {
@@ -74,6 +92,13 @@ void RenderFrame(void) {
     t.lift_y[0] = lift_y[0];
     t.lift_y[1] = lift_y[1];
   }
+  t.has_beep = heard_beep;
+  t.beep_note = beep_note;
+  t.beep_period = beep_period;
+  t.has_noise = heard_noise;
+  t.noise_note = noise_note;
+  t.noise_period = noise_period;
+  heard_beep = heard_noise = 0;
   t.duck_timer = duck_timer;
   t.current_duck = current_duck;
   t.big_duck_x = big_duck_x;

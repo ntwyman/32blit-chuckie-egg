@@ -73,6 +73,13 @@ if(CHUCKIE_PARITY)
     DEPENDS ${UPSTREAM}/chuckie.c ${PARITY}/apply-patches.sh ${PARITY_PATCHES}
     COMMENT "Applying tools/parity/patches to upstream chuckie.c"
   )
+  # Upstream's chuckie.h has no include guard, and the driver includes both chuckie.c and audio.c. Copies in
+  # the build folder hold a guarded chuckie.h and an audio.c that finds it, so the driver reads audio.c's own
+  # sound_start state.
+  file(READ ${UPSTREAM}/chuckie.h CHUCKIE_H)
+  file(WRITE ${PARITY_GEN}/chuckie.h "#pragma once\n${CHUCKIE_H}")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${UPSTREAM}/chuckie.h)
+  configure_file(${UPSTREAM}/audio.c ${PARITY_GEN}/audio.c COPYONLY)
   add_executable(parity-original ${PARITY}/original_driver.c ${UPSTREAM}/leveldata.c ${PARITY_GEN}/chuckie.c)
   set_source_files_properties(${PARITY_GEN}/chuckie.c PROPERTIES HEADER_FILE_ONLY ON)
   target_include_directories(parity-original PRIVATE ${PARITY_GEN} ${PARITY} ${UPSTREAM})

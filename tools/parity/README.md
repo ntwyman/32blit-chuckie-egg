@@ -73,6 +73,8 @@ The build copies `chuckie.c` and applies `patches/*.patch` to the copy in name o
 
 `Game::Snapshot`, `Game::upstreamPosition`, and the `trace.h` include compile only when `CHUCKIE_PARITY` is defined. Only the `parity-port` target defines it, so device and web builds hold no trace code.
 
+Two optional field pairs appear only on a frame that starts a sound. `beep_note` and `beep_period` are the note `MakeSound` passes to `sound_start` (`chuckie.c:690`) and the half-period in samples that `audio.c` derives from it, at 44,100 Hz. `noise_note` and `noise_period` are the same for the noise `squidge` starts when Henry takes an egg (note 6) or grain (note 5). The original driver includes upstream's own `audio.c` and reads `tone_period` after `sound_start` runs, so a wrong lookup table, a wrong 1.2 factor, or a wrong divisor in the port shows as a differing period. A frame with no sound has none of these fields on either side.
+
 The fields are Henry's x, y, tile, partial position, and mode, whether he died this frame, then the score, lives, bonus, timer, the player whose turn it is, and the level as the HUD numbers it minus one (`current_level`), then the lift positions on a level with a lift, the duck timer, the hen countdown that picks which hen moves next (`current_duck`), the mother duck's position, direction and wing frame, the hen count, and each hen's position and mode. The mother duck's position and wing frame are traced on every level, because upstream keeps the duck in its cage on levels 1 to 8 and flaps its wings there. Hens past the level's count are left out, because both games keep stale values there.
 
 ## Building without the 32Blit engine

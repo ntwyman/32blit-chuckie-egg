@@ -32,6 +32,12 @@ typedef struct {
   int32_t has_lift;
   int32_t lift_x;
   int32_t lift_y[2];
+  int32_t has_beep;
+  int32_t beep_note;
+  int32_t beep_period;
+  int32_t has_noise;
+  int32_t noise_note;
+  int32_t noise_period;
   int32_t duck_timer;
   int32_t current_duck;
   int32_t hens;

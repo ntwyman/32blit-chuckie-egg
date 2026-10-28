@@ -5,6 +5,10 @@ held-through-level-complete DIVERGES at frame 16 field henry_x
   henry_x first differs at frame 16: port 60, original 61
   henry_tile_x first differs at frame 16: port 7, original 8
   henry_partial_x first differs at frame 16: port 7, original 0
+  beep_note first differs at frame 16: port -, original 64
+  beep_period first differs at frame 16: port -, original 84
   score first differs at frame 53: port 1000, original 1100
+  noise_note first differs at frame 53: port -, original 6
+  noise_period first differs at frame 53: port -, original 25
   timer first differs at frame 83: port 891, original 892
-  every difference: 268 field values over 75 frames, sha256 4bcdcce1f27fcafc
+  every difference: 304 field values over 75 frames, sha256 654734b89d21176b
