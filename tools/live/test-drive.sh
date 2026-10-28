@@ -800,7 +800,7 @@ audible() {
 
 t_start_audio_captures_a_walk_and_idle_is_silent() {
   local lane=$((LANE_BASE + 6)) walk="$TMP/walk.raw" idle="$TMP/idle.raw"
-  printf 'level 1\n24 left\n10 -\n' >"$TMP/audio.inputs"
+  printf 'level 1\n10 right\n10 -\n' >"$TMP/audio.inputs"
   LIVE_LANE=$lane "$DRIVE" start --audio "$idle" >/dev/null 2>&1 || return 1
   sleep 1
   LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
