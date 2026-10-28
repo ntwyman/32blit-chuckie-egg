@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2020-2026 ntwyman
 
-// The trace diff cannot see the title or the high score table, because the original has neither. This checks
-// the table's rules, its save, and the title and name entry screens that Game builds on them.
+// The trace diff cannot see the title or the high score table, because the original has neither.
 
 #include "game.hpp"
 #include "high_scores.hpp"
@@ -154,7 +153,6 @@ static void playToGameOver(Game &game, int players, bool grain = true) {
       steps(game, 93, BUTTON_LEFT);
       game.Step(0);
     } else {
-      // Level 3 on its own, Henry standing still until the timer kills him (timeout.inputs).
       for (int i = 0; i < 9000 && game.State() == GameState::LEVEL; i++) {
         game.Step(0);
       }

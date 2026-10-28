@@ -171,9 +171,7 @@ record() {
   echo "run.sh: wrote $(pinned "$name")"
 }
 
-# The title adds states in front of the player-count screen, so a trace must not change when the port driver
-# starts there. This runs the port on every script with --start-at-title and compares it with the same run
-# that skips the title, and checks that the idle script still passes against the original.
+# The title adds states in front of the player-count screen, so a trace must not change when the port driver starts there.
 title_check() {
   local script name status=0
   mkdir -p "$TRACES"

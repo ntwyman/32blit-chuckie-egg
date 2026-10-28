@@ -101,7 +101,6 @@ public:
   void SetScreenSize(blit::Size &);
   void InitAudio();
   void SetLogo(blit::Surface *surface) { logo = surface; }
-  // The save holds the top ten. LoadScores keeps the default table when the data is not a valid save.
   bool LoadScores(const uint8_t *data, size_t size) { return scores.Decode(data, size); }
   void EncodeScores(uint8_t *out) const { scores.Encode(out); }
   // True once for each change to the table, so the caller writes the save only then.
@@ -197,7 +196,6 @@ private:
   GameState state = GameState::TITLE;
   unsigned int gameOverLock{};
 
-  // Title and high scores
   blit::Surface *logo = nullptr;
   HighScores scores;
   bool scoresChanged{};
