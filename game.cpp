@@ -885,9 +885,15 @@ static uint16_t noiseHz(int period) {
     return static_cast<uint16_t>((UPSTREAM_RATE + cycle / 2) / cycle);
 }
 
-// Upstream's 10 ms volume steps (audio.c:beep_vol, noise_vol) become ADSR ramps, with each voice's channel
-// volume set so the beep's envelope area matches upstream's and the noise's rms does. 32Blit's noise has a
-// standard deviation of 65536 / sqrt(12), against upstream's +-0x3fff, so 0xddb3 gives 0x3fff rms.
+// Upstream's 10 ms volume steps (audio.c:beep_vol, noise_vol) become ADSR ramps. The beep's channel volume
+// makes its envelope area match upstream's. The noise's gain keeps its rms close to upstream's: 32Blit's
+// generator returns up to +-65535 into the int16_t AudioChannel::noise, so 8.3 percent of its samples wrap and
+// its standard deviation is 16,910. At 0xddb3 the voice's rms is 14,644, which is 1.0 dB under upstream's total
+// rms (16,383) and 0.33 dB under its rms about the mean (15,213). The second is the one to match, because
+// upstream's LFSR noise carries a DC offset that nobody hears.
+// The noise decays from full scale to 0 over 2 s instead of holding at full scale, so a noise burst that
+// Step never releases (a hidden browser tab stops the main loop but not the audio) fades out in 2 s rather than
+// hissing. The decay lowers the rms over the 180 ms hold to 0.9554 of a flat level, so the volume is raised to 0xe80c.
 void Game::InitAudio() {
     AudioChannel &beep = channels[BEEP_CHANNEL];
     beep.waveforms = Waveform::SQUARE;
@@ -897,10 +903,10 @@ void Game::InitAudio() {
     beep.sustain = 0;
     AudioChannel &noise = channels[NOISE_CHANNEL];
     noise.waveforms = Waveform::NOISE;
-    noise.volume = 0xddb3;
+    noise.volume = NOISE_VOLUME;
     noise.attack_ms = 10;
-    noise.decay_ms = 1;
-    noise.sustain = 0xffff;
+    noise.decay_ms = NOISE_DECAY_MS;
+    noise.sustain = 0;
     noise.release_ms = 20;
 }
 

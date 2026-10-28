@@ -30,6 +30,8 @@ enum GameState {HOW_MANY, READY_PLAYER, LEVEL, GAME_OVER};
 #define NOISE_CHANNEL 1
 // audio.c's noise lasts 200 ms, and the port holds it for six 30 ms steps before its 20 ms release.
 #define NOISE_HOLD_STEPS 6
+#define NOISE_VOLUME 0xe80c
+#define NOISE_DECAY_MS 2000
 #define NO_NOTE INT32_MIN
 
 /*** Game interface.  */
