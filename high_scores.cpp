@@ -101,7 +101,8 @@ bool HighScores::Decode(const uint8_t *in, size_t size) {
   for (int i = 0; ok && i < HS_ENTRIES; i++, p += 4 + HS_NAME_LEN + 1) {
     parsed[i].score = get32(p);
     memcpy(parsed[i].name, p + 4, HS_NAME_LEN + 1);
-    size_t len = strnlen(parsed[i].name, HS_NAME_LEN + 1);
+    const char *end = (const char *)memchr(parsed[i].name, '\0', HS_NAME_LEN + 1);
+    size_t len = end ? (size_t)(end - parsed[i].name) : HS_NAME_LEN + 1;
     ok = parsed[i].score <= SCORE_MAX && len > 0 && len <= (size_t)HS_NAME_LEN &&
          (i == 0 || parsed[i].score <= parsed[i - 1].score);
     for (size_t c = 0; ok && c < len; c++) {

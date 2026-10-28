@@ -64,7 +64,8 @@ const Pen GREEN(0, 255, 0);
 const Pen CYAN(0, 255, 255);
 const Pen MAGENTA(255, 0, 255);
 const Pen WHITE(255, 255, 255);
-// Text sits in 8 pixel cells like the original's, whose letters are spaced apart.
+// Text sits in 8 pixel cells like the original's, whose letters are spaced apart. The built-in font is thin, so
+// each letter is drawn twice, one pixel apart, to match the original's heavy strokes.
 constexpr int CELL = 8;
 constexpr int LINE = 12;
 
@@ -73,6 +74,7 @@ void drawText(Surface &s, const char *text, int x, int y, Pen pen) {
     for (; *text != '\0'; text++, x += CELL) {
         char one[2] = {*text, '\0'};
         s.text(one, minimal_font, Point(x, y));
+        s.text(one, minimal_font, Point(x + 1, y));
     }
 }
 
