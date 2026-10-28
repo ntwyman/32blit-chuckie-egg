@@ -32,8 +32,13 @@ SMOKE_FPS=100
 SMOKE_SCREEN=640x480x24
 AUDIO_RATE=22050
 
+HOME_DATA="${XDG_DATA_HOME:-${HOME:-/nonexistent}/.local/share}"
 DATA="${LIVE_DATA:-${TMPDIR:-/tmp}/chuckie-live-data-$DISPLAY_NUM}"
-SAVE_FILE="$DATA/ntwyman/Chuckie Egg/save0"
+[[ "$DATA" == /* ]] || die "LIVE_DATA must be an absolute path, got '$DATA'"
+[ "$(realpath -m -- "$DATA")" != "$(realpath -m -- "$HOME_DATA")" ] ||
+  die "LIVE_DATA is the real data folder $HOME_DATA; use a folder of the lane's own"
+SAVE_DIR="$DATA/ntwyman/Chuckie Egg"
+SAVE_FILE="$SAVE_DIR/save0"
 
 export DISPLAY=":$DISPLAY_NUM"
 export XDG_DATA_HOME="$DATA"
@@ -665,8 +670,17 @@ cmd_save_path() {
 cmd_forget_save() {
   [ $# -eq 0 ] || die "usage: drive.sh forget-save"
   game_running && die "the game runs on display $DISPLAY; run drive.sh stop first"
-  rm -f -- "$SAVE_FILE"
-  rmdir -- "$(dirname "$SAVE_FILE")" "$(dirname "$(dirname "$SAVE_FILE")")" "$DATA" 2>/dev/null || true
+  local path
+  for path in "$DATA" "$DATA/ntwyman" "$SAVE_DIR" "$SAVE_FILE"; do
+    [ ! -L "$path" ] || die "forget-save: $path is a symbolic link; it will not follow it"
+  done
+  if [ ! -e "$SAVE_FILE" ]; then
+    echo "forget-save: no save at $SAVE_FILE"
+    return 0
+  fi
+  [ -f "$SAVE_FILE" ] || die "forget-save: $SAVE_FILE is not a regular file"
+  rm -- "$SAVE_FILE"
+  rmdir -- "$SAVE_DIR" "$DATA/ntwyman" 2>/dev/null || true
   echo "forget-save: removed $SAVE_FILE"
 }
 

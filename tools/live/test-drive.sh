@@ -952,6 +952,57 @@ t_save_commands_reject_arguments() {
   return 0
 }
 
+forget_in_sandbox() {
+  local sandbox="$1"
+  shift
+  (cd "$sandbox" && env -u XDG_DATA_HOME HOME="$sandbox/home" LIVE_LANE=$((LANE_BASE + 8)) "$@" "$DRIVE" forget-save 2>&1)
+}
+
+sandbox_save() {
+  mkdir -p "$1/ntwyman/Chuckie Egg"
+  : >"$1/ntwyman/Chuckie Egg/save0"
+}
+
+t_forget_save_refuses_the_home_data_folder() {
+  local sandbox="$TMP/forget-home" out
+  mkdir -p "$sandbox"
+  sandbox_save "$sandbox/home/.local/share"
+  out="$(forget_in_sandbox "$sandbox" LIVE_DATA="$sandbox/home/.local/share")"
+  [ $? != 0 ] && [ -e "$sandbox/home/.local/share/ntwyman/Chuckie Egg/save0" ] && [[ "$out" == *"real data folder"* ]]
+}
+
+t_forget_save_keeps_the_data_folder() {
+  local sandbox="$TMP/forget-keep" out
+  mkdir -p "$sandbox"
+  sandbox_save "$sandbox/data"
+  out="$(forget_in_sandbox "$sandbox" LIVE_DATA="$sandbox/data")" || return 1
+  [ -d "$sandbox/data" ] && [ ! -e "$sandbox/data/ntwyman" ] && [[ "$out" == *"forget-save: removed"* ]]
+}
+
+t_forget_save_will_not_follow_a_symlink() {
+  local sandbox="$TMP/forget-link" out
+  mkdir -p "$sandbox/data"
+  sandbox_save "$sandbox/victim"
+  ln -s "$sandbox/victim/ntwyman" "$sandbox/data/ntwyman"
+  out="$(forget_in_sandbox "$sandbox" LIVE_DATA="$sandbox/data")"
+  [ $? != 0 ] && [ -e "$sandbox/victim/ntwyman/Chuckie Egg/save0" ] && [[ "$out" == *"symbolic link"* ]]
+}
+
+t_forget_save_refuses_a_relative_data_folder() {
+  local sandbox="$TMP/forget-relative" out
+  mkdir -p "$sandbox"
+  sandbox_save "$sandbox/rel"
+  out="$(forget_in_sandbox "$sandbox" LIVE_DATA=rel)"
+  [ $? != 0 ] && [ -e "$sandbox/rel/ntwyman/Chuckie Egg/save0" ] && [[ "$out" == *"absolute"* ]]
+}
+
+t_forget_save_reports_only_a_real_removal() {
+  local sandbox="$TMP/forget-none" out
+  mkdir -p "$sandbox/data"
+  out="$(forget_in_sandbox "$sandbox" LIVE_DATA="$sandbox/data")" || return 1
+  [[ "$out" != *removed* ]] && [[ "$out" == *"no save"* ]] && [ -d "$sandbox/data" ]
+}
+
 t_play_leaves_the_title_first() {
   local lane=$((LANE_BASE + 9)) state out
   state="$(lane_state $lane)"
@@ -971,6 +1022,11 @@ check "ce-9: the game runs with a per-lane XDG_DATA_HOME" t_game_gets_its_own_sa
 check "ce-9: forget-save removes only the lane's data" t_forget_save_removes_only_the_lane_data
 check "ce-9: forget-save refuses while the game runs" t_forget_save_refuses_while_the_game_runs
 check "ce-9: save-path and forget-save take no arguments" t_save_commands_reject_arguments
+check "ce-9: forget-save refuses LIVE_DATA set to the real data folder" t_forget_save_refuses_the_home_data_folder
+check "ce-9: forget-save never removes LIVE_DATA itself" t_forget_save_keeps_the_data_folder
+check "ce-9: forget-save will not follow a symbolic link" t_forget_save_will_not_follow_a_symlink
+check "ce-9: forget-save refuses a relative LIVE_DATA" t_forget_save_refuses_a_relative_data_folder
+check "ce-9: forget-save says removed only when it removed the file" t_forget_save_reports_only_a_real_removal
 check "ce-9: play leaves the title before the player-count screen" t_play_leaves_the_title_first
 check "held-jump: a jump held from Ready player waits for release" t_held_start_press_does_not_jump
 check "ce-3: game.log shows debugf lines while the game runs" t_game_log_shows_debugf_while_running
