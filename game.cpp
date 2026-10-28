@@ -53,6 +53,40 @@ constexpr uint32_t SCORE_LIMIT = 100000000;
 constexpr int FALL_DEATH_Y = 222;
 // About two seconds at 30 ms a step. A player tapping jump as a hen catches him must not skip the screen.
 constexpr unsigned int GAME_OVER_LOCK_STEPS = 67;
+// The attract screens swap about every 6 seconds.
+constexpr unsigned int TITLE_PAGE_STEPS = 200;
+// Holding up or down in name entry repeats after about 0.3 seconds, then every 90 ms.
+constexpr unsigned int ENTRY_REPEAT_DELAY = 10;
+constexpr unsigned int ENTRY_REPEAT_STEPS = 3;
+const char ENTRY_CHARS[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -&.";
+const Pen YELLOW(255, 255, 0);
+const Pen GREEN(0, 255, 0);
+const Pen CYAN(0, 255, 255);
+const Pen MAGENTA(255, 0, 255);
+const Pen WHITE(255, 255, 255);
+// Text sits in 8 pixel cells like the original's, whose letters are spaced apart. The built-in font is thin, so
+// each letter is drawn twice, one pixel apart, to match the original's heavy strokes. M and W stay single, because doubled their strokes fill in.
+constexpr int CELL = 8;
+constexpr int LINE = 12;
+
+void drawText(Surface &s, const char *text, int x, int y, Pen pen) {
+    s.pen = pen;
+    for (; *text != '\0'; text++, x += CELL) {
+        char one[2] = {*text, '\0'};
+        s.text(one, minimal_font, Point(x, y));
+        if (*text != 'M' && *text != 'W') {
+            s.text(one, minimal_font, Point(x + 1, y));
+        }
+    }
+}
+
+void drawCentred(Surface &s, const char *text, int y, Pen pen) {
+    drawText(s, text, (s.bounds.w - (int)strlen(text) * CELL) / 2, y, pen);
+}
+
+void drawRight(Surface &s, const char *text, int right, int y, Pen pen) {
+    drawText(s, text, right - (int)strlen(text) * CELL, y, pen);
+}
 }
 
 Game::Game(unsigned int hudLevel, uint32_t score) : startLevel(hudLevel - 1), startScore(score) {}
@@ -1253,6 +1287,85 @@ void Game::maybeAddExtraLife() {
         debugf("Extra life, lives: %d\r\n", this->player().lives);
     }
 }
+void Game::beginTitle(unsigned int page) {
+    this->state = GameState::TITLE;
+    this->titlePage = page;
+    this->titleSteps = 0;
+}
+
+void Game::stepTitle() {
+    if (this->newDown & BUTTON_A) {
+        debugf("Leaving title\r\n");
+        this->state = GameState::HOW_MANY;
+    } else if (++this->titleSteps >= TITLE_PAGE_STEPS) {
+        this->titleSteps = 0;
+        this->titlePage ^= 1;
+    }
+}
+
+// Players enter their scores in turn order. A score that no longer makes the table, because an earlier player's
+// entry pushed it down, is skipped.
+void Game::startEntry(unsigned int player) {
+    for (; player < this->numPlayers; player++) {
+        if (this->scores.Qualifies(this->playerData[player].score)) {
+            this->entryPlayer = player;
+            memset(this->entryName, 0, sizeof(this->entryName));
+            this->entryName[0] = 'A';
+            this->entryCursor = 0;
+            this->entryHold = 0;
+            this->ignored = this->rawDown;
+            this->titleSteps = 0;
+            this->state = GameState::NAME_ENTRY;
+            debugf("Name entry for player %u\r\n", player + 1);
+            return;
+        }
+    }
+    this->beginTitle(1);
+}
+
+void Game::finishEntry() {
+    int rank = this->scores.Insert(this->playerData[this->entryPlayer].score, this->entryName);
+    this->scoresChanged = true;
+    debugf("High score: player %u rank %d name %s\r\n", this->entryPlayer + 1, rank + 1, rank >= 0 ? this->scores.At(rank).name : "");
+    this->startEntry(this->entryPlayer + 1);
+}
+
+void Game::stepNameEntry() {
+    auto cycle = [this](int dir) {
+        int count = (int)strlen(ENTRY_CHARS);
+        int at = (int)(strchr(ENTRY_CHARS, this->entryName[this->entryCursor]) - ENTRY_CHARS);
+        this->entryName[this->entryCursor] = ENTRY_CHARS[(at + dir + count) % count];
+    };
+    this->titleSteps++;
+    if (this->newDown & BUTTON_UP) {
+        cycle(1);
+        this->entryHold = 0;
+    } else if (this->newDown & BUTTON_DOWN) {
+        cycle(-1);
+        this->entryHold = 0;
+    } else if (this->buttonsDown & (BUTTON_UP | BUTTON_DOWN)) {
+        this->entryHold++;
+        if (this->entryHold >= ENTRY_REPEAT_DELAY && (this->entryHold - ENTRY_REPEAT_DELAY) % ENTRY_REPEAT_STEPS == 0) {
+            cycle((this->buttonsDown & BUTTON_UP) ? 1 : -1);
+        }
+    } else {
+        this->entryHold = 0;
+    }
+    if ((this->newDown & BUTTON_RIGHT) && this->entryCursor < HS_NAME_LEN - 1) {
+        this->entryName[++this->entryCursor] = 'A';
+    }
+    if (this->newDown & BUTTON_LEFT) {
+        if (this->entryCursor > 0) {
+            this->entryName[this->entryCursor--] = '\0';
+        } else {
+            this->entryName[0] = 'A';
+        }
+    }
+    if (this->newDown & BUTTON_A) {
+        this->finishEntry();
+    }
+}
+
 void Game::SetScreenSize(blit::Size &size) {
     this->screenSize = size;
 }
@@ -1272,6 +1385,12 @@ void Game::Step(uint8_t buttons) {
     this->buttonsDown = buttons & ~this->ignored;
 
     switch (this->state) {
+        case GameState::TITLE:
+            this->stepTitle();
+            break;
+        case GameState::NAME_ENTRY:
+            this->stepNameEntry();
+            break;
         case GameState::HOW_MANY:
             if ((this->newDown & BUTTON_UP) && (this->numPlayers < MAX_PLAYERS)) {
                 this->numPlayers ++;
@@ -1293,7 +1412,7 @@ void Game::Step(uint8_t buttons) {
             if (this->gameOverLock > 0) {
                 this->gameOverLock--;
             } else if (this->newDown & BUTTON_A) {
-                this->state = GameState::HOW_MANY;
+                this->startEntry(0);
             }
             break;
         case GameState::LEVEL:
@@ -1385,6 +1504,66 @@ FrameTrace Game::Snapshot() {
 }
 #endif
 
+void Game::renderTitle(Surface &s) {
+    if (this->logo != nullptr) {
+        Rect logoRect(Point(0, 0), this->logo->bounds);
+        s.blit(this->logo, logoRect, Point((s.bounds.w - logoRect.w) / 2, this->titlePage == 0 ? 22 : 8));
+    }
+    if (this->titlePage == 1) {
+        drawCentred(s, "HIGH SCORES", 44, YELLOW);
+        this->renderTable(s, this->scores, -1, "");
+        const int footerX = (s.bounds.w - 16 * CELL) / 2;
+        drawText(s, "Press ", footerX, 196, YELLOW);
+        drawText(s, "A", footerX + 6 * CELL, 196, CYAN);
+        drawText(s, " to start", footerX + 7 * CELL, 196, YELLOW);
+        return;
+    }
+    drawCentred(s, "A game of skill for 1 to 4 players", 70, CYAN);
+    drawCentred(s, "Guide 'Hen House Harry' around the", 100, YELLOW);
+    drawCentred(s, "screens to collect a dozen eggs!", 100 + LINE, YELLOW);
+    drawCentred(s, "Left and right walk. Up and down", 140, MAGENTA);
+    drawCentred(s, "climb ladders and ride lifts.", 140 + LINE, MAGENTA);
+    drawCentred(s, "A jumps.", 140 + 2 * LINE, MAGENTA);
+    drawCentred(s, "Press A to start", 184, CYAN);
+    drawCentred(s, "Port of Paul Brook's GPLv3 Chuckie Egg", 206, YELLOW);
+    drawCentred(s, "Based on the original by A&F Software", 206 + LINE, YELLOW);
+}
+
+void Game::renderTable(Surface &s, const HighScores &table, int highlight, const char *highlightName) {
+    const int top = highlight >= 0 ? 30 : 62;
+    for (int i = 0; i < HS_ENTRIES; i++) {
+        char buf[16];
+        int y = top + i * LINE;
+        Pen pen = i == highlight ? CYAN : GREEN;
+        sprintf(buf, "%d", i + 1);
+        drawRight(s, buf, 96, y, pen);
+        sprintf(buf, "%u", (unsigned)table.At(i).score);
+        drawRight(s, buf, 176, y, pen);
+        drawText(s, i == highlight ? highlightName : table.At(i).name, 192, y, pen);
+    }
+}
+
+void Game::renderNameEntry(Surface &s) {
+    char buf[40];
+    const uint32_t score = this->playerData[this->entryPlayer].score;
+    if (this->numPlayers > 1) {
+        sprintf(buf, "Player %u, enter your name", this->entryPlayer + 1);
+    } else {
+        sprintf(buf, "A new high score! Enter your name");
+    }
+    drawCentred(s, buf, 8, YELLOW);
+    HighScores preview = this->scores;
+    int rank = preview.Insert(score, this->entryName);
+    this->renderTable(s, preview, rank, this->entryName);
+    if ((this->titleSteps / 10) % 2 == 0 && rank >= 0) {
+        s.pen = WHITE;
+        s.rectangle(Rect(192 + this->entryCursor * CELL, 30 + rank * LINE + 9, 6, 1));
+    }
+    drawCentred(s, "Up and down pick a letter", 160, MAGENTA);
+    drawCentred(s, "Right: next letter  Left: delete", 160 + LINE, MAGENTA);
+    drawCentred(s, "Press A when done", 160 + 2 * LINE + 6, CYAN);
+}
+
 void Game::Render(Surface &s) {
     /*
      Render callback is roughly every 25 ms
@@ -1393,6 +1572,12 @@ void Game::Render(Surface &s) {
     s.pen = Pen(255,255,255);
     char buf[0x20];
     switch (this->state) {
+        case GameState::TITLE:
+            this->renderTitle(s);
+            break;
+        case GameState::NAME_ENTRY:
+            this->renderNameEntry(s);
+            break;
         case GameState::HOW_MANY:
             sprintf(buf, "How many players? %d", this->numPlayers);
             s.text(buf, minimal_font, Point(5, 4));

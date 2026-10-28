@@ -52,7 +52,7 @@ In every **Verify** block, trunk means the PR's base, which is its parent branch
   - [ ] CE-1 touches only `third_party/pbrook-chuckie-egg/**`, `LICENSE`, `README.md`, `metadata.yml`, `CMakeLists.txt`, `tools/check-license.sh`, `.github/workflows/build.yml`, and the header comment of each `*.cpp` and `*.hpp` file.
   - [ ] CE-2 touches only `tools/live/**`, `.devcontainer/Dockerfile`, `.devcontainer/devcontainer.json`, and `.github/workflows/build.yml`.
   - [ ] CE-3 touches only `tools/parity/**`, `tools/live/**`, `CMakeLists.txt`, `.github/workflows/build.yml`, and the `Tickle` and snapshot code in `game.hpp`, `game.cpp`, and `chuckie_egg.cpp`.
-  - [ ] CE-4 through CE-9 touch `game.hpp`, `game.cpp`, `chuckie_egg.cpp`, `frame_clock.hpp`, `tools/parity/**`, `tools/live/**`, and `docs/media/**`. CE-4 and CE-6 also touch `CMakeLists.txt`. CE-9 also touches `assets/**`, `assets.yml`, and `metadata.yml`.
+  - [ ] CE-4 through CE-9 touch `game.hpp`, `game.cpp`, `chuckie_egg.cpp`, `frame_clock.hpp`, `tools/parity/**`, `tools/live/**`, and `docs/media/**`. CE-4 and CE-6 also touch `CMakeLists.txt`. CE-9 also touches `assets/**`, `assets.yml`, `metadata.yml`, `high_scores.cpp`, `high_scores.hpp`, and `CMakeLists.txt`.
 - [ ] Hold the review gate. CE-4, CE-5, CE-6, CE-7, CE-8, and CE-9 change an interaction. They wait for the operator's review in chat with screenshots and a video before merge.
 
 ### PR mechanics, for every PR
@@ -555,6 +555,7 @@ Each live lane runs in its own git worktree at the PR head, inside the dev conta
 
 - [ ] Edit `game.cpp` and `game.hpp`.
 - [ ] Create `assets/splash.png` and `assets/icon.png`, and edit `metadata.yml` and `assets.yml`.
+- [ ] Create `high_scores.cpp` and `high_scores.hpp` for the table and its save format, and edit `CMakeLists.txt` to build them.
 
 **Build.**
 

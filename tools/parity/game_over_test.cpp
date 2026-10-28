@@ -43,6 +43,7 @@ static void steps(Game &game, int count, uint8_t buttons) {
 // Level 2, one player. Each life runs right to the grain and then left into the gap in the floor.
 static Game gameOver() {
   Game game(2, 0);
+  game.SkipTitle();
   blit::Size screen(320, 240);
   game.SetScreenSize(screen);
   game.Step(BUTTON_A);
@@ -60,6 +61,7 @@ static Game gameOver() {
 int main() {
   {
     Game game(1, 0);
+    game.SkipTitle();
     blit::Size screen(320, 240);
     game.SetScreenSize(screen);
     game.Step(BUTTON_A);
@@ -76,6 +78,12 @@ int main() {
     }
     expect(game.State() == GameState::GAME_OVER, "five deaths on level 2 show game over");
     steps(game, LOCK_STEPS, 0);
+    game.Step(BUTTON_A);
+    expect(game.State() == GameState::NAME_ENTRY, "a score of more than 50 asks for a name after game over");
+    game.Step(0);
+    game.Step(BUTTON_A);
+    expect(game.State() == GameState::TITLE, "finishing the name shows the title");
+    game.Step(0);
     game.Step(BUTTON_A);
     game.Step(0);
     game.Step(BUTTON_A);
@@ -102,7 +110,7 @@ int main() {
     expect(game.State() == GameState::GAME_OVER, "the press on step 67 skips the screen");
     game.Step(0);
     game.Step(BUTTON_A);
-    expect(game.State() == GameState::HOW_MANY, "a fresh press on step 69 does not return to the player-count screen");
+    expect(game.State() == GameState::NAME_ENTRY, "a fresh press on step 69 does not leave the game-over screen for the name entry");
   }
   {
     Game game = gameOver();
@@ -110,13 +118,13 @@ int main() {
     expect(game.State() == GameState::GAME_OVER, "an A held from the first step through two seconds does something");
     game.Step(0);
     game.Step(BUTTON_A);
-    expect(game.State() == GameState::HOW_MANY, "a release and a new press do not return to the player-count screen");
+    expect(game.State() == GameState::NAME_ENTRY, "a release and a new press do not leave the game-over screen for the name entry");
   }
   {
     Game game = gameOver();
     steps(game, LOCK_STEPS, 0);
     game.Step(BUTTON_A);
-    expect(game.State() == GameState::HOW_MANY, "a fresh A after two seconds does not return at once");
+    expect(game.State() == GameState::NAME_ENTRY, "a fresh A after two seconds does not leave the game-over screen at once");
   }
   if (failures == 0) {
     puts("game_over_test: ok");

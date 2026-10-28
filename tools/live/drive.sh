@@ -32,7 +32,16 @@ SMOKE_FPS=100
 SMOKE_SCREEN=640x480x24
 AUDIO_RATE=22050
 
+HOME_DATA="${XDG_DATA_HOME:-${HOME:-/nonexistent}/.local/share}"
+DATA="${LIVE_DATA:-${TMPDIR:-/tmp}/chuckie-live-data-$DISPLAY_NUM}"
+[[ "$DATA" == /* ]] || die "LIVE_DATA must be an absolute path, got '$DATA'"
+[ "$(realpath -m -- "$DATA")" != "$(realpath -m -- "$HOME_DATA")" ] ||
+  die "LIVE_DATA is the real data folder $HOME_DATA; use a folder of the lane's own"
+SAVE_DIR="$DATA/ntwyman/Chuckie Egg"
+SAVE_FILE="$SAVE_DIR/save0"
+
 export DISPLAY=":$DISPLAY_NUM"
+export XDG_DATA_HOME="$DATA"
 export SDL_AUDIODRIVER=dummy
 
 proc_stat() {
@@ -617,6 +626,10 @@ cmd_play() {
   play_await 0
   PLAY_LATE=0
   PLAY_BASE="$PLAY_STEP"
+  play_set z
+  play_until "Leaving title"
+  play_set ""
+  sleep 0.5
   for ((i = 1; i < players; i++)); do
     play_set Up
     sleep 0.15
@@ -647,6 +660,28 @@ cmd_play() {
   trap - PIPE
   echo "play: $frames frames, $PLAY_LATE late"
   [ "$PLAY_LATE" = 0 ]
+}
+
+cmd_save_path() {
+  [ $# -eq 0 ] || die "usage: drive.sh save-path"
+  echo "$SAVE_FILE"
+}
+
+cmd_forget_save() {
+  [ $# -eq 0 ] || die "usage: drive.sh forget-save"
+  game_running && die "the game runs on display $DISPLAY; run drive.sh stop first"
+  local path
+  for path in "$DATA" "$DATA/ntwyman" "$SAVE_DIR" "$SAVE_FILE"; do
+    [ ! -L "$path" ] || die "forget-save: $path is a symbolic link; it will not follow it"
+  done
+  if [ ! -e "$SAVE_FILE" ]; then
+    echo "forget-save: no save at $SAVE_FILE"
+    return 0
+  fi
+  [ -f "$SAVE_FILE" ] || die "forget-save: $SAVE_FILE is not a regular file"
+  rm -- "$SAVE_FILE"
+  rmdir -- "$SAVE_DIR" "$DATA/ntwyman" 2>/dev/null || true
+  echo "forget-save: removed $SAVE_FILE"
 }
 
 cmd_shot() {
@@ -697,7 +732,7 @@ frame_hashes() {
 }
 
 level1_frames() {
-  awk '$0 != prev { runs++; if (runs == 2) ready = NR - 1; if (runs == 3) { print ready, NR - 1; exit } } { prev = $0 }'
+  awk '$0 != prev { runs++; if (runs == 3) ready = NR - 1; if (runs == 4) { print ready, NR - 1; exit } } { prev = $0 }'
 }
 
 record_start() {
@@ -834,13 +869,15 @@ main() {
     keys) cmd_keys "$@" ;;
     play) cmd_play "$@" ;;
     shot) cmd_shot "$@" ;;
+    save-path) cmd_save_path "$@" ;;
+    forget-save) cmd_forget_save "$@" ;;
     record) cmd_record "$@" ;;
     stop) cmd_stop "$@" ;;
     smoke) cmd_smoke "$@" ;;
     golden) cmd_golden "$@" ;;
     spectrogram) cmd_spectrogram "$@" ;;
     *)
-      echo "usage: drive.sh start [--level <n>] [--score <n>] [--audio <file>] | spectrogram <audio.raw> <path.png> | keys <script> | play <script.inputs> | shot <path> | record <seconds> <path> | stop | smoke | golden <path>" >&2
+      echo "usage: drive.sh start [--level <n>] [--score <n>] [--audio <file>] | spectrogram <audio.raw> <path.png> | keys <script> | play <script.inputs> | shot <path> | save-path | forget-save | record <seconds> <path> | stop | smoke | golden <path>" >&2
       exit 2
       ;;
   esac

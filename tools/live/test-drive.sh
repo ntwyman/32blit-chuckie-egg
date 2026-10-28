@@ -24,7 +24,7 @@ cleanup() {
   for lane in $LANES; do
     LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
     [ "$failures" = 0 ] || keep_artifacts "$lane"
-    rm -rf "/tmp/chuckie-live-$((99 + lane))" "$LIVE/out/lane$lane"
+    rm -rf "/tmp/chuckie-live-$((99 + lane))" "/tmp/chuckie-live-data-$((99 + lane))" "$LIVE/out/lane$lane"
   done
   [ "$failures" = 0 ] || cp "$TMP"/*.log "$ARTIFACTS/logs/" 2>/dev/null
   pkill -f "$TMP/" 2>/dev/null
@@ -873,7 +873,7 @@ t_held_start_press_does_not_jump() {
   log="$(lane_state $lane)/game.log"
   printf 'z 1500\n' >"$TMP/hold-jump.keys"
   LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
-  if ! { press_until_logged $lane 100 'Starting Game' && press_until_logged $lane 600 'Loaded level'; }; then
+  if ! { press_until_logged $lane 100 'Leaving title' && press_until_logged $lane 100 'Starting Game' && press_until_logged $lane 600 'Loaded level'; }; then
     echo "  a setup press never showed its effect" >&2
     grep -av '^Step ' "$log" | tail -20 >&2
     LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
@@ -895,6 +895,139 @@ t_held_start_press_does_not_jump() {
   [ "$early" = 0 ] && [ "$jumps" -ge 2 ]
 }
 
+t_save_path_is_inside_the_lane_data() {
+  local lane=$((LANE_BASE + 8)) out
+  out="$(LIVE_LANE=$lane "$DRIVE" save-path 2>&1)"
+  [ "$out" = "/tmp/chuckie-live-data-$((99 + lane))/ntwyman/Chuckie Egg/save0" ] || return 1
+  out="$(LIVE_LANE=$lane LIVE_DATA="$TMP/data" "$DRIVE" save-path 2>&1)"
+  [ "$out" = "$TMP/data/ntwyman/Chuckie Egg/save0" ]
+}
+
+t_game_gets_its_own_save_folder() {
+  local lane=$((LANE_BASE + 8)) pid
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  pid="$(cut -d' ' -f1 "$(lane_state $lane)/game.pid")"
+  tr '\0' '\n' <"/proc/$pid/environ" | grep -qx "XDG_DATA_HOME=/tmp/chuckie-live-data-$((99 + lane))"
+  local status=$?
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  return $status
+}
+
+t_forget_save_removes_only_the_lane_data() {
+  local lane=$((LANE_BASE + 8)) save out
+  save="$(LIVE_LANE=$lane "$DRIVE" save-path)"
+  mkdir -p "$(dirname "$save")"
+  : >"$save"
+  mkdir -p "$TMP/other"
+  : >"$TMP/other/keep"
+  mkdir -p "/tmp/chuckie-live-data-$((99 + lane))/otherapp"
+  : >"/tmp/chuckie-live-data-$((99 + lane))/otherapp/data"
+  out="$(LIVE_LANE=$lane "$DRIVE" forget-save 2>&1)" || return 1
+  local other=1
+  [ -e "/tmp/chuckie-live-data-$((99 + lane))/otherapp/data" ] && other=0
+  rm -rf "/tmp/chuckie-live-data-$((99 + lane))"
+  [ "$other" = 0 ] && [ ! -e "$save" ] && [ -e "$TMP/other/keep" ] &&
+    [[ "$out" == *"forget-save: removed"* ]] &&
+    LIVE_LANE=$lane "$DRIVE" forget-save >/dev/null 2>&1
+}
+
+t_forget_save_refuses_while_the_game_runs() {
+  local lane=$((LANE_BASE + 8)) save out status
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  save="$(LIVE_LANE=$lane "$DRIVE" save-path)"
+  mkdir -p "$(dirname "$save")"
+  : >"$save"
+  out="$(LIVE_LANE=$lane "$DRIVE" forget-save 2>&1)"
+  status=$?
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  local kept=1
+  [ -e "$save" ] && kept=0
+  rm -rf "/tmp/chuckie-live-data-$((99 + lane))"
+  [ "$status" != 0 ] && [ "$kept" = 0 ] && [[ "$out" == *"drive.sh stop"* ]]
+}
+
+t_save_commands_reject_arguments() {
+  LIVE_LANE=$((LANE_BASE + 8)) "$DRIVE" save-path extra >/dev/null 2>&1 && return 1
+  LIVE_LANE=$((LANE_BASE + 8)) "$DRIVE" forget-save extra >/dev/null 2>&1 && return 1
+  return 0
+}
+
+forget_in_sandbox() {
+  local sandbox="$1"
+  shift
+  (cd "$sandbox" && env -u XDG_DATA_HOME HOME="$sandbox/home" LIVE_LANE=$((LANE_BASE + 8)) "$@" "$DRIVE" forget-save 2>&1)
+}
+
+sandbox_save() {
+  mkdir -p "$1/ntwyman/Chuckie Egg"
+  : >"$1/ntwyman/Chuckie Egg/save0"
+}
+
+t_forget_save_refuses_the_home_data_folder() {
+  local sandbox="$TMP/forget-home" out
+  mkdir -p "$sandbox"
+  sandbox_save "$sandbox/home/.local/share"
+  out="$(forget_in_sandbox "$sandbox" LIVE_DATA="$sandbox/home/.local/share")"
+  [ $? != 0 ] && [ -e "$sandbox/home/.local/share/ntwyman/Chuckie Egg/save0" ] && [[ "$out" == *"real data folder"* ]]
+}
+
+t_forget_save_keeps_the_data_folder() {
+  local sandbox="$TMP/forget-keep" out
+  mkdir -p "$sandbox"
+  sandbox_save "$sandbox/data"
+  out="$(forget_in_sandbox "$sandbox" LIVE_DATA="$sandbox/data")" || return 1
+  [ -d "$sandbox/data" ] && [ ! -e "$sandbox/data/ntwyman" ] && [[ "$out" == *"forget-save: removed"* ]]
+}
+
+t_forget_save_will_not_follow_a_symlink() {
+  local sandbox="$TMP/forget-link" out
+  mkdir -p "$sandbox/data"
+  sandbox_save "$sandbox/victim"
+  ln -s "$sandbox/victim/ntwyman" "$sandbox/data/ntwyman"
+  out="$(forget_in_sandbox "$sandbox" LIVE_DATA="$sandbox/data")"
+  [ $? != 0 ] && [ -e "$sandbox/victim/ntwyman/Chuckie Egg/save0" ] && [[ "$out" == *"symbolic link"* ]]
+}
+
+t_forget_save_refuses_a_relative_data_folder() {
+  local sandbox="$TMP/forget-relative" out
+  mkdir -p "$sandbox"
+  sandbox_save "$sandbox/rel"
+  out="$(forget_in_sandbox "$sandbox" LIVE_DATA=rel)"
+  [ $? != 0 ] && [ -e "$sandbox/rel/ntwyman/Chuckie Egg/save0" ] && [[ "$out" == *"absolute"* ]]
+}
+
+t_forget_save_reports_only_a_real_removal() {
+  local sandbox="$TMP/forget-none" out
+  mkdir -p "$sandbox/data"
+  out="$(forget_in_sandbox "$sandbox" LIVE_DATA="$sandbox/data")" || return 1
+  [[ "$out" != *removed* ]] && [[ "$out" == *"no save"* ]] && [ -d "$sandbox/data" ]
+}
+
+t_play_leaves_the_title_first() {
+  local lane=$((LANE_BASE + 9)) state out
+  state="$(lane_state $lane)"
+  printf 'level 1\n4 -\n' >"$TMP/title.inputs"
+  LIVE_LANE=$lane "$DRIVE" start >/dev/null 2>&1 || return 1
+  out="$(LIVE_LANE=$lane "$DRIVE" play "$TMP/title.inputs" 2>&1)"
+  local status=$?
+  local title level
+  title="$(grep -an 'Leaving title' "$state/game.log" | head -1 | cut -d: -f1)"
+  level="$(grep -an 'Loaded level' "$state/game.log" | head -1 | cut -d: -f1)"
+  LIVE_LANE=$lane "$DRIVE" stop >/dev/null 2>&1
+  [ "$status" = 0 ] && [ -n "$title" ] && [ -n "$level" ] && [ "$title" -lt "$level" ] && [[ "$out" == *"4 frames, 0 late"* ]]
+}
+
+check "ce-9: save-path names the lane's own save file" t_save_path_is_inside_the_lane_data
+check "ce-9: the game runs with a per-lane XDG_DATA_HOME" t_game_gets_its_own_save_folder
+check "ce-9: forget-save removes only the lane's data" t_forget_save_removes_only_the_lane_data
+check "ce-9: forget-save refuses while the game runs" t_forget_save_refuses_while_the_game_runs
+check "ce-9: save-path and forget-save take no arguments" t_save_commands_reject_arguments
+check "ce-9: forget-save refuses LIVE_DATA set to the real data folder" t_forget_save_refuses_the_home_data_folder
+check "ce-9: forget-save never removes LIVE_DATA itself" t_forget_save_keeps_the_data_folder
+check "ce-9: forget-save will not follow a symbolic link" t_forget_save_will_not_follow_a_symlink
+check "ce-9: forget-save refuses a relative LIVE_DATA" t_forget_save_refuses_a_relative_data_folder
+check "ce-9: forget-save says removed only when it removed the file" t_forget_save_reports_only_a_real_removal
+check "ce-9: play leaves the title before the player-count screen" t_play_leaves_the_title_first
 check "held-jump: a jump held from Ready player waits for release" t_held_start_press_does_not_jump
 check "ce-3: game.log shows debugf lines while the game runs" t_game_log_shows_debugf_while_running
 check "fix: start runs Xvfb with -noreset so the readiness probe cannot reset it" t_start_keeps_xvfb_from_resetting
