@@ -45,6 +45,7 @@ static const char usage[] = "port_driver [--level <n>] [--score <n>] [--players 
 static void enterLevel(Game &game, int players) {
   blit::Size screen(320, 240);
   game.SetScreenSize(screen);
+  game.InitAudio();
   for (int i = 1; i < players; i++) {
     game.Step(BUTTON_UP);
     game.Step(0);

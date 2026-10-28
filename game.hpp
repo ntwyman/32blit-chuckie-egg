@@ -96,6 +96,9 @@ class Game {
 public:
   explicit Game(unsigned int hudLevel, uint32_t startScore = 0);
   void SetScreenSize(blit::Size &);
+  void InitAudio();
+  int BeepNote() const { return beepNote; }
+  int NoiseNote() const { return noiseNote; }
   void Render(blit::Surface &);
   void Step(uint8_t buttons);
 #ifdef CHUCKIE_PARITY

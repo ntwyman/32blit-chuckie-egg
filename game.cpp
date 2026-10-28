@@ -887,30 +887,33 @@ static uint16_t noiseHz(int period) {
 
 // Upstream's 10 ms volume steps (audio.c:beep_vol, noise_vol) become ADSR ramps, with each voice's channel
 // volume set so the envelope area matches upstream's.
+void Game::InitAudio() {
+    AudioChannel &beep = channels[BEEP_CHANNEL];
+    beep.waveforms = Waveform::SQUARE;
+    beep.volume = 0xbfff;
+    beep.attack_ms = 1;
+    beep.decay_ms = 19;
+    beep.sustain = 0;
+    AudioChannel &noise = channels[NOISE_CHANNEL];
+    noise.waveforms = Waveform::NOISE;
+    noise.volume = 0x8000;
+    noise.attack_ms = 10;
+    noise.decay_ms = 1;
+    noise.sustain = 0xffff;
+    noise.release_ms = 20;
+}
+
 void Game::startBeep(int note) {
-    int period = beepPeriod(note);
     this->beepNote = note;
     AudioChannel &c = channels[BEEP_CHANNEL];
-    c.waveforms = Waveform::SQUARE;
-    c.frequency = beepHz(period);
-    c.volume = 0xbfff;
-    c.attack_ms = 1;
-    c.decay_ms = 19;
-    c.sustain = 0;
+    c.frequency = beepHz(beepPeriod(note));
     c.trigger_attack();
 }
 
 void Game::startNoise(int note) {
-    int period = noisePeriod(note);
     this->noiseNote = note;
     AudioChannel &c = channels[NOISE_CHANNEL];
-    c.waveforms = Waveform::NOISE;
-    c.frequency = noiseHz(period);
-    c.volume = 0x8000;
-    c.attack_ms = 10;
-    c.decay_ms = 1;
-    c.sustain = 0xffff;
-    c.release_ms = 20;
+    c.frequency = noiseHz(noisePeriod(note));
     c.trigger_attack();
     this->noiseHold = NOISE_HOLD_STEPS;
 }
