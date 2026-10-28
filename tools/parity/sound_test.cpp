@@ -31,6 +31,13 @@ using blit::Waveform;
 
 static int failures = 0;
 
+static const ADSRPhase MARKER = ADSRPhase::DECAY;
+
+static void silence() {
+  blit::channels[0].off();
+  blit::channels[1].off();
+}
+
 static void expect(bool ok, const char *what, int a = 0, int b = 0) {
   if (!ok) {
     fprintf(stderr, "sound_test: %s (%d, %d)\n", what, a, b);
@@ -99,11 +106,14 @@ struct Counts {
 static void play(Counts &counts, uint8_t direction, int jumpEvery) {
   AudioChannel &beep = blit::channels[0];
   AudioChannel &noise = blit::channels[1];
+  silence();
   Game game(1, 0);
   enter(game);
+  silence();
   int sinceNoise = -1;
   for (int step = 0; step < 220; step++) {
     beep.adsr_phase = ADSRPhase::OFF;
+    noise.adsr_phase = MARKER;
     uint8_t buttons = direction;
     if (jumpEvery && step % jumpEvery == 5) {
       buttons |= BUTTON_A;
@@ -133,10 +143,12 @@ static void play(Counts &counts, uint8_t direction, int jumpEvery) {
     } else if (sinceNoise >= 0) {
       sinceNoise++;
       if (sinceNoise < UPSTREAM_HOLD_STEPS) {
-        expect(noise.adsr_phase != ADSRPhase::RELEASE && noise.adsr_phase != ADSRPhase::OFF, "the noise is held", sinceNoise);
-      } else {
-        counts.holds += sinceNoise == UPSTREAM_HOLD_STEPS;
+        expect(noise.adsr_phase == MARKER, "the noise is held", sinceNoise);
+      } else if (sinceNoise == UPSTREAM_HOLD_STEPS) {
+        counts.holds++;
         expect(noise.adsr_phase == ADSRPhase::RELEASE, "the noise is released after six steps", sinceNoise);
+      } else {
+        expect(noise.adsr_phase == MARKER, "the noise is not released again", sinceNoise);
       }
     }
   }
@@ -145,12 +157,14 @@ static void play(Counts &counts, uint8_t direction, int jumpEvery) {
 // A hidden browser tab stops the main loop, so no Step releases the noise. The mixer alone must end it.
 static void checkEndsWithoutStep() {
   AudioChannel &noise = blit::channels[1];
+  silence();
   Game game(1, 0);
   enter(game);
+  silence();
   for (int step = 0; step < 220 && noise.adsr_phase == ADSRPhase::OFF; step++) {
     game.Step(BUTTON_RIGHT);
   }
-  expect(noise.adsr_phase != ADSRPhase::OFF, "the walk takes a grain or egg");
+  expect(noise.adsr_phase == ADSRPhase::ATTACK, "the walk takes a grain or egg");
   blit::AudioChannel copy = noise;
   noise.frequency = copy.frequency;
   noise.trigger_attack();
