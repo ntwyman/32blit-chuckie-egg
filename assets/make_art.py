@@ -3,13 +3,12 @@
 # Copyright (C) 2020-2026 ntwyman
 #
 # Draws logo.png, splash.png and icon.png from the glyph tables below. Run it from any folder: python3 assets/make_art.py
+# Every colour is explicit, so the output does not depend on the Pillow version or its quantizer.
 import os
-from PIL import Image, ImageDraw
+from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 YELLOW = (255, 255, 0, 255)
-GREEN = (0, 255, 0, 255)
-BLACK = (0, 0, 0, 255)
 CLEAR = (0, 0, 0, 0)
 
 GLYPHS = {
@@ -42,6 +41,20 @@ def word_width(word, scale):
     return sum((len(GLYPHS[l][0]) + 1) * scale for l in word) - scale
 
 
+# The splash's "32BLIT PORT", 61 by 8 pixels. 1 and 2 are the two greens of the splash palette, . is the background.
+PORT_TEXT = [
+    ".1112..2112..11112.1.....1.2111112..11112.21112..111122111112",
+    "22..1..1.21..1..21.1.....1....1.....1..2121...12.1..21...1...",
+    "...21.22..1..1...1.1.....1....1.....1...112...21.1...1...1...",
+    "..112....21..1..22.1.....1....1.....1..211.....1.1..21...1...",
+    "...21....1...11111.1.....1....1.....1111.1.....1.1111....1...",
+    "2...1...12...1..21.1.....1....1.....1....12...21.1..22...1...",
+    "12.21..12....1...1.1.....1....1.....1....21...12.1..21...1...",
+    ".1112.21111..11112.11112.1....1.....1.....21112..1...1...1...",
+]
+SPLASH_PALETTE = [255, 255, 0, 0, 222, 0, 0, 80, 0, 0, 0, 0]
+
+
 def logo():
     scale = 3
     width = word_width("CHUCKIE EGG", scale)
@@ -51,12 +64,16 @@ def logo():
 
 
 def splash():
-    image = Image.new("RGBA", (128, 96), BLACK)
-    draw_word(image, "CHUCKIE", (128 - word_width("CHUCKIE", 2)) // 2, 14, 2, YELLOW)
-    draw_word(image, "EGG", (128 - word_width("EGG", 2)) // 2, 36, 2, YELLOW)
-    draw = ImageDraw.Draw(image)
-    draw.text((26, 66), "32BLIT PORT", fill=GREEN)
-    image.convert("RGB").convert("P", palette=Image.ADAPTIVE, colors=4).save(os.path.join(HERE, "splash.png"))
+    image = Image.new("P", (128, 96), 3)
+    image.putpalette(SPLASH_PALETTE)
+    draw_word(image, "CHUCKIE", (128 - word_width("CHUCKIE", 2)) // 2, 14, 2, 0)
+    draw_word(image, "EGG", (128 - word_width("EGG", 2)) // 2, 36, 2, 0)
+    px = image.load()
+    for r, row in enumerate(PORT_TEXT):
+        for c, ch in enumerate(row):
+            if ch != ".":
+                px[26 + c, 68 + r] = int(ch)
+    image.save(os.path.join(HERE, "splash.png"))
 
 
 def icon():
@@ -70,15 +87,16 @@ def icon():
         ".yyyyyy.",
         "gggggggg",
     ]
-    image = Image.new("RGB", (8, 8), (0, 0, 0))
+    image = Image.new("P", (8, 8), 2)
+    image.putpalette([255, 255, 0, 0, 255, 0, 0, 0, 0])
     px = image.load()
     for y, row in enumerate(rows):
         for x, ch in enumerate(row):
             if ch == "y":
-                px[x, y] = (255, 255, 0)
+                px[x, y] = 0
             elif ch == "g":
-                px[x, y] = (0, 255, 0)
-    image.convert("P", palette=Image.ADAPTIVE, colors=3).save(os.path.join(HERE, "icon.png"))
+                px[x, y] = 1
+    image.save(os.path.join(HERE, "icon.png"))
 
 
 logo()
