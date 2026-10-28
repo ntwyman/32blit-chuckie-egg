@@ -67,7 +67,7 @@ void update(uint32_t time) {
     uint8_t save[HS_SAVE_SIZE];
     game.EncodeScores(save);
     write_save(reinterpret_cast<const char *>(save), sizeof(save));
-    debugf("Saved the high scores\r\n");
+    debugf("Asked for the high scores to be saved\r\n");
   }
   if (steps > 0) {
     step_count += steps;

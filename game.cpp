@@ -1326,7 +1326,7 @@ void Game::startEntry(unsigned int player) {
 void Game::finishEntry() {
     int rank = this->scores.Insert(this->playerData[this->entryPlayer].score, this->entryName);
     this->scoresChanged = true;
-    debugf("High score: player %u rank %d name %s\r\n", this->entryPlayer + 1, rank + 1, this->entryName);
+    debugf("High score: player %u rank %d name %s\r\n", this->entryPlayer + 1, rank + 1, rank >= 0 ? this->scores.At(rank).name : "");
     this->startEntry(this->entryPlayer + 1);
 }
 
