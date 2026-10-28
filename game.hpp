@@ -122,6 +122,7 @@ public:
   const char *EntryName() const { return entryName; }
   int EntryCursor() const { return entryCursor; }
   int EntryPlayer() const { return entryPlayer; }
+  unsigned int TitlePage() const { return titlePage; }
 #endif
 
 private:

@@ -1313,6 +1313,7 @@ void Game::startEntry(unsigned int player) {
             this->entryName[0] = 'A';
             this->entryCursor = 0;
             this->entryHold = 0;
+            this->ignored = this->rawDown;
             this->titleSteps = 0;
             this->state = GameState::NAME_ENTRY;
             debugf("Name entry for player %u\r\n", player + 1);

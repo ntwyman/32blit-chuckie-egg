@@ -289,6 +289,100 @@ static void twoPlayers() {
          "equal scores rank player 1 above player 2");
 }
 
+// Two players on 100 each, between the 9th entry (10,000) and the 10th (50). Player 1 takes rank 10 and pushes player 2 off.
+static void pushedOff() {
+  Game game = titleGame(3, 100);
+  game.SkipTitle();
+  playToGameOver(game, 2, false);
+  expect(game.State() == GameState::GAME_OVER, "two players with no score still reach game over");
+  finishGameOver(game);
+  expect(game.State() == GameState::NAME_ENTRY && game.EntryPlayer() == 0, "player 1 enters first when both qualify");
+  tap(game, BUTTON_A);
+  expect(game.State() == GameState::TITLE, "player 2, pushed off by player 1's entry, is skipped");
+}
+
+static void fourPlayers() {
+  Game game = titleGame(2, 80000);
+  game.SkipTitle();
+  playToGameOver(game, 4);
+  expect(game.State() == GameState::GAME_OVER, "four players run out of lives");
+  finishGameOver(game);
+  for (int p = 0; p < 4; p++) {
+    expect(game.State() == GameState::NAME_ENTRY && game.EntryPlayer() == p, "players 1 to 4 enter in turn order");
+    for (int k = 0; k < p; k++) {
+      tap(game, BUTTON_UP);
+    }
+    tap(game, BUTTON_A);
+  }
+  expect(game.State() == GameState::TITLE, "the title follows player 4");
+  const HighScores &t = game.Scores();
+  expect(strcmp(t.At(2).name, "A") == 0 && strcmp(t.At(3).name, "B") == 0 && strcmp(t.At(4).name, "C") == 0 &&
+             strcmp(t.At(5).name, "D") == 0,
+         "equal scores of four players rank in turn order");
+}
+
+static void titlePages() {
+  Game game = titleGame(1, 0);
+  expect(game.TitlePage() == 0, "the title opens on the first screen");
+  steps(game, 199, 0);
+  expect(game.TitlePage() == 0, "the first screen stays for 199 steps");
+  game.Step(0);
+  expect(game.TitlePage() == 1, "step 200 swaps to the table");
+  steps(game, 200, 0);
+  expect(game.TitlePage() == 0, "step 400 swaps back to the first screen");
+  Game over = titleGame(3, 0);
+  over.SkipTitle();
+  playToGameOver(over, 1, false);
+  finishGameOver(over);
+  expect(over.State() == GameState::TITLE && over.TitlePage() == 1, "game over returns to the table");
+}
+
+static void heldA() {
+  Game game = titleGame(2, 80000);
+  game.SkipTitle();
+  playToGameOver(game, 1);
+  steps(game, 70, 0);
+  game.Step(BUTTON_A);
+  expect(game.State() == GameState::NAME_ENTRY, "A after the game over lock opens the entry");
+  steps(game, 5, BUTTON_A);
+  expect(game.State() == GameState::NAME_ENTRY, "an A held from game over does not finish the entry");
+  game.Step(0);
+  game.Step(BUTTON_A);
+  expect(game.State() == GameState::TITLE, "a fresh A finishes the entry");
+  steps(game, 5, BUTTON_A);
+  expect(game.State() == GameState::TITLE, "an A held from the entry does not leave the title");
+}
+
+static void repeatTiming() {
+  Game game = titleGame(2, 80000);
+  game.SkipTitle();
+  playToGameOver(game, 1);
+  finishGameOver(game);
+  game.Step(BUTTON_UP);
+  steps(game, 9, BUTTON_UP);
+  expect(game.EntryName()[0] == 'B', "a held up does not repeat before 10 held steps");
+  game.Step(BUTTON_UP);
+  expect(game.EntryName()[0] == 'C', "a held up first repeats on the 10th held step");
+  steps(game, 2, BUTTON_UP);
+  expect(game.EntryName()[0] == 'C', "a held up waits 2 steps after a repeat");
+  game.Step(BUTTON_UP);
+  expect(game.EntryName()[0] == 'D', "a held up then repeats every 3 steps");
+}
+
+static void heldIntoEntry() {
+  Game game = titleGame(2, 80000);
+  game.SkipTitle();
+  playToGameOver(game, 1);
+  steps(game, 70, BUTTON_UP);
+  game.Step(BUTTON_UP | BUTTON_A);
+  expect(game.State() == GameState::NAME_ENTRY, "A with up held opens the entry");
+  steps(game, 40, BUTTON_UP);
+  expect(strcmp(game.EntryName(), "A") == 0, "an up held into the entry does not repeat until it is released");
+  game.Step(0);
+  tap(game, BUTTON_UP);
+  expect(strcmp(game.EntryName(), "B") == 0, "a fresh up after the release changes the letter");
+}
+
 int main() {
   tableRules();
   saveRoundTrip();
@@ -297,6 +391,12 @@ int main() {
   noEntry();
   entry();
   twoPlayers();
+  pushedOff();
+  fourPlayers();
+  titlePages();
+  heldA();
+  repeatTiming();
+  heldIntoEntry();
   if (failures == 0) {
     puts("high_score_test: ok");
   }
