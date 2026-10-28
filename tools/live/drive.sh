@@ -665,8 +665,9 @@ cmd_save_path() {
 cmd_forget_save() {
   [ $# -eq 0 ] || die "usage: drive.sh forget-save"
   game_running && die "the game runs on display $DISPLAY; run drive.sh stop first"
-  rm -rf -- "$DATA"
-  echo "forget-save: removed $DATA"
+  rm -f -- "$SAVE_FILE"
+  rmdir -- "$(dirname "$SAVE_FILE")" "$(dirname "$(dirname "$SAVE_FILE")")" "$DATA" 2>/dev/null || true
+  echo "forget-save: removed $SAVE_FILE"
 }
 
 cmd_shot() {

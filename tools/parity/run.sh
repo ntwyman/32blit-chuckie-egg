@@ -174,6 +174,7 @@ record() {
 # The title adds states in front of the player-count screen, so a trace must not change when the port driver starts there.
 title_check() {
   local script name status=0
+  report idle >/dev/null
   mkdir -p "$TRACES"
   for script in "$PARITY"/scripts/*.inputs; do
     name="$(basename "$script" .inputs)"

@@ -920,8 +920,13 @@ t_forget_save_removes_only_the_lane_data() {
   : >"$save"
   mkdir -p "$TMP/other"
   : >"$TMP/other/keep"
+  mkdir -p "/tmp/chuckie-live-data-$((99 + lane))/otherapp"
+  : >"/tmp/chuckie-live-data-$((99 + lane))/otherapp/data"
   out="$(LIVE_LANE=$lane "$DRIVE" forget-save 2>&1)" || return 1
-  [ ! -e "$save" ] && [ ! -e "/tmp/chuckie-live-data-$((99 + lane))" ] && [ -e "$TMP/other/keep" ] &&
+  local other=1
+  [ -e "/tmp/chuckie-live-data-$((99 + lane))/otherapp/data" ] && other=0
+  rm -rf "/tmp/chuckie-live-data-$((99 + lane))"
+  [ "$other" = 0 ] && [ ! -e "$save" ] && [ -e "$TMP/other/keep" ] &&
     [[ "$out" == *"forget-save: removed"* ]] &&
     LIVE_LANE=$lane "$DRIVE" forget-save >/dev/null 2>&1
 }

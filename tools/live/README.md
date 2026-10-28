@@ -19,7 +19,7 @@
 | `drive.sh keys <script>` | Sends a key script. A `<script>` with a `/` is a path. A bare name is looked up in `tools/live/scripts/` (as given, then with `.keys`) and only then in the current directory. Use `./name.keys` for a file in the current directory. An empty script does nothing and exits zero. |
 | `drive.sh play <script.inputs>` | Replays a trace-diff input script (`tools/parity/scripts/*.inputs`) on a fresh game, one game step per script frame. See "Frame-exact replay". |
 | `drive.sh save-path` | Prints the lane's save file, `$LIVE_DATA/ntwyman/Chuckie Egg/save0`. The game keeps its high scores there. See "The save file". |
-| `drive.sh forget-save` | Deletes the lane's save folder, so the next game starts with the default high scores. It refuses while the game runs. |
+| `drive.sh forget-save` | Deletes the lane's save file and any save folders it leaves empty, so the next game starts with the default high scores. It never touches other files in `$LIVE_DATA`. It refuses while the game runs. |
 | `drive.sh shot <path>` | Saves a screenshot of the display as a PNG. |
 | `drive.sh record <seconds> <path>` | Records the display as an MP4 for that long. It blocks, so run it in the background while a key script plays. INT or TERM stops the recorder and removes `record.pid`. A non-interactive shell starts a background `record &` with INT ignored, so cancel it with TERM. A second `record` on a lane that is already recording fails. |
 | `drive.sh stop` | Stops the game and `Xvfb`, and removes `play.fifo` and `play.ready`. It exits zero when nothing runs. |
@@ -104,7 +104,7 @@ The dev container needs nothing for this. A PulseAudio null sink, the fallback i
 
 The game keeps its ten best scores with `blit::write_save`. On SDL that is the file `save0` in SDL's preference folder for author `ntwyman` and title `Chuckie Egg`, which is `$XDG_DATA_HOME/ntwyman/Chuckie Egg/save0` (`~/.local/share/...` when `XDG_DATA_HOME` is unset). `drive.sh` sets `XDG_DATA_HOME` to `$LIVE_DATA` for the game, so a lane never reads or writes the home folder's save. `LIVE_DATA` defaults to `/tmp/chuckie-live-data-<display>`.
 
-`stop` keeps that folder, so a restart finds the table. `forget-save` deletes it. The file is 130 bytes. The game writes it only when a name entry finishes and reads it once at start.
+`stop` keeps that folder, so a restart finds the table. `forget-save` deletes the file and the empty folders around it. The file is 130 bytes. The game writes it only when a name entry finishes and reads it once at start.
 
 ## Running lanes in parallel
 

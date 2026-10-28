@@ -68,7 +68,12 @@ static void tableRules() {
   expect(strcmp(t.At(rank).name, "ANON") == 0, "an empty name becomes ANON");
   rank = t.RankFor(100004);
   t.Insert(100004, "a\x01z");
-  expect(strcmp(t.At(rank).name, "???") == 0, "characters outside the set become question marks");
+  expect(strcmp(t.At(rank).name, "...") == 0, "characters outside the set become dots");
+  uint8_t save[HS_SAVE_SIZE];
+  t.Encode(save);
+  HighScores back;
+  expect(back.Decode(save, sizeof(save)) && strcmp(back.At(rank).name, "...") == 0,
+         "a table with a sanitized name survives its save round trip");
 }
 
 static void saveRoundTrip() {

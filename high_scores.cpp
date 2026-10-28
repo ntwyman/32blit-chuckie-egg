@@ -69,7 +69,7 @@ int HighScores::Insert(uint32_t score, const char *name) {
   memset(e.name, 0, sizeof(e.name));
   int n = 0;
   for (; n < HS_NAME_LEN && name[n] != '\0'; n++) {
-    e.name[n] = ValidChar(name[n]) ? name[n] : '?';
+    e.name[n] = ValidChar(name[n]) ? name[n] : '.';
   }
   while (n > 0 && e.name[n - 1] == ' ') {
     e.name[--n] = '\0';
