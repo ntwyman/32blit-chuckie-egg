@@ -1,3 +1,5 @@
 held-through-death
 two-players-zero-bonus
 game-over
+two-players-zero-bonus-complete
+held-through-level-complete

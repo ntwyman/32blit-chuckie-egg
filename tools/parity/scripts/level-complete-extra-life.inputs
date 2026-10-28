@@ -1,0 +1,7 @@
+# Start 500 points short of an extra life and skip level 1. The 1,000 bonus counts into the score 10 points at a time, and the
+# score crosses 10,000 inside that loop, which is where upstream grants the life (chuckie.c:1158-1160).
+level 1
+score 9500
+5 -
+1 skip
+20 -

@@ -245,7 +245,7 @@ stop_procs() {
 cmd_stop() {
   local did=0
   stop_procs && did=1
-  rm -f "$STATE"/*.mkv "$STATE"/*.err
+  rm -f "$STATE"/*.mkv "$STATE"/*.err "$STATE/play.fifo" "$STATE/play.ready"
   if [ -e "$STATE/failed" ]; then
     echo "stop: a run failed; logs are in $STATE" >&2
   else
@@ -383,6 +383,248 @@ cmd_keys() {
     fi
   done <<<"$steps"
   restore_traps
+}
+
+parse_inputs() {
+  local file="$1" n=0 line first rest part xk names
+  local -a words parts
+  while IFS= read -r line || [ -n "$line" ]; do
+    n=$((n + 1))
+    line="${line%%#*}"
+    read -ra words <<<"$line" || true
+    [ "${#words[@]}" -gt 0 ] || continue
+    first="${words[0]}"
+    case "$first" in
+      level | score | players) continue ;;
+    esac
+    rest="${words[1]:--}"
+    if ! [[ "$first" =~ ^[1-9][0-9]{0,6}$ ]] || [ "${#words[@]}" -gt 2 ]; then
+      echo "drive.sh: $file:$n: expected '<frames> <keys>', got '$line'" >&2
+      return 2
+    fi
+    names=""
+    if [ "$rest" != - ]; then
+      if [[ "$rest" == *+ ]]; then
+        echo "drive.sh: $file:$n: empty key in combo '$rest'" >&2
+        return 2
+      fi
+      if [[ "+$rest+" == *+left+* && "+$rest+" == *+right+* ]] || [[ "+$rest+" == *+up+* && "+$rest+" == *+down+* ]]; then
+        echo "drive.sh: $file:$n: the live driver cannot press opposing directions together, got '$rest'" >&2
+        return 2
+      fi
+      IFS=+ read -ra parts <<<"$rest"
+      for part in "${parts[@]}"; do
+        case "$part" in
+          right) xk=Right ;;
+          left) xk=Left ;;
+          down) xk=Down ;;
+          up) xk=Up ;;
+          jump) xk=z ;;
+          *)
+            echo "drive.sh: $file:$n: the live driver cannot press '$part'; use right, left, down, up, or jump" >&2
+            return 2
+            ;;
+        esac
+        names="$names${names:+ }$xk"
+      done
+    fi
+    echo "$first ${names:--}"
+  done <"$file"
+}
+
+PLAY_STEP=0
+PLAY_LATE=0
+
+PLAY_PENDING=""
+
+# Reads the next line of the game log, polling for it. tail -F polls once a second where inotify is missing, which
+# delays every key by up to a second.
+play_line() {
+  local part polls=0
+  while :; do
+    if IFS= read -r -u "$PLAY_FD" part; then
+      line="$PLAY_PENDING$part"
+      PLAY_PENDING=""
+      return 0
+    fi
+    PLAY_PENDING="$PLAY_PENDING$part"
+    polls=$((polls + 1))
+    [ "$polls" -lt 2500 ] || return 1
+    sleep 0.002
+  done
+}
+
+PLAY_WALL0=""
+PLAY_GAME0=""
+PLAYERS=1
+
+# A step line read long after the game logged it means the keys for it went out late, even when no step was skipped.
+play_lag_check() {
+  local game_ms="$1" wall_ms
+  wall_ms=$((${EPOCHREALTIME/./} / 1000))
+  if [ -z "$PLAY_WALL0" ]; then
+    PLAY_WALL0="$wall_ms"
+    PLAY_GAME0="$game_ms"
+  elif [ $((wall_ms - PLAY_WALL0 - (game_ms - PLAY_GAME0))) -gt 12 ]; then
+    PLAY_LATE=$((PLAY_LATE + 1))
+  fi
+}
+
+play_await() {
+  local want="$1" line n
+  while :; do
+    play_line || die "play: no step in the game log for 5 seconds"
+    if [ "$PLAYERS" -gt 1 ] && [[ "$line" == "Henry died"* ]]; then
+      die "play: Henry died with $PLAYERS players, and the next player's ready screen needs an A press the script cannot give"
+    fi
+    [[ "$line" =~ ^Step\ ([0-9]+):\ ran\ [0-9]+\ at\ ([0-9]+)\ ms ]] || continue
+    n="${BASH_REMATCH[1]}"
+    play_lag_check "${BASH_REMATCH[2]}"
+    PLAY_STEP="$n"
+    if [ "$n" -ge "$want" ]; then
+      [ "$n" -eq "$want" ] || PLAY_LATE=$((PLAY_LATE + 1))
+      return 0
+    fi
+  done
+}
+
+play_set() {
+  local key keep=""
+  for key in $HELD_KEYS; do
+    if [[ " $1 " == *" $key "* ]]; then
+      keep="$keep${keep:+ }$key"
+    else
+      play_send keyup "$key"
+    fi
+  done
+  HELD_KEYS="$keep"
+  for key in $1; do
+    [[ " $HELD_KEYS " == *" $key "* ]] && continue
+    play_send keydown "$key"
+    HELD_KEYS="$HELD_KEYS${HELD_KEYS:+ }$key"
+  done
+}
+
+play_send() {
+  echo "$1 $2" >&"$PLAY_XFD" 2>/dev/null || play_sender_died
+}
+
+play_sender_died() {
+  local keys="$HELD_KEYS"
+  HELD_KEYS=""
+  [ -z "$keys" ] || xdotool keyup $keys 2>/dev/null || true
+  die "play: the key sender died"
+}
+
+play_cleanup() {
+  local key
+  if [ -n "${PLAY_XFD:-}" ]; then
+    for key in $HELD_KEYS; do
+      echo "keyup $key" >&"$PLAY_XFD" 2>/dev/null || xdotool keyup "$key" 2>/dev/null || true
+    done
+    exec {PLAY_XFD}>&-
+    PLAY_XFD=""
+  fi
+  [ -z "${PLAY_FD:-}" ] || exec {PLAY_FD}<&-
+  PLAY_FD=""
+  [ -z "${PLAY_XPID:-}" ] || wait "$PLAY_XPID" 2>/dev/null || true
+  PLAY_XPID=""
+  HELD_KEYS=""
+  rm -f "$STATE/play.fifo" "$STATE/play.ready"
+}
+
+play_until() {
+  local pattern="$1" line seen=0 lines=0
+  while :; do
+    play_line || die "play: the game never logged '$pattern'"
+    lines=$((lines + 1))
+    [ "$lines" -lt 400 ] || die "play: the game never logged '$pattern'"
+    [[ "$line" == *"$pattern"* ]] && seen=1
+    if [ "$seen" = 1 ] && [[ "$line" =~ ^Step\ ([0-9]+):\ ran\ ([0-9]+) ]]; then
+      PLAY_BASE="${BASH_REMATCH[1]}"
+      [ "${BASH_REMATCH[2]}" -eq 1 ] || PLAY_LATE=$((PLAY_LATE + 1))
+      return 0
+    fi
+  done
+}
+
+play_menu_press() {
+  play_set "$1"
+  PLAY_BASE=$((PLAY_BASE + 1))
+  play_await "$PLAY_BASE"
+}
+
+cmd_play() {
+  [ $# -eq 1 ] || die "usage: drive.sh play <script.inputs>"
+  need xdotool python3
+  local file steps players count keys frames=0 i sender_rc=0
+  file="$1"
+  [ -f "$file" ] || die "no input script at '$file'"
+  steps="$(parse_inputs "$file")" || exit 2
+  [ -n "$steps" ] || die "$file has no frames"
+  players="$(awk '{ sub(/#.*/, "") } $1 == "players" { print $2 }' "$file")"
+  players="${players:-1}"
+  [[ "$players" =~ ^[1-4]$ ]] || {
+    echo "drive.sh: $file: expected 'players <n>' with n from 1 to 4, got '$players'" >&2
+    exit 2
+  }
+  PLAYERS="$players"
+  PLAY_WALL0=""
+  game_running || die "game is not running, run: drive.sh start"
+  [ -f "$STATE/game.log" ] || die "no game log at $STATE/game.log"
+  rm -f "$STATE/play.fifo"
+  mkfifo "$STATE/play.fifo"
+  trap '' PIPE
+  install_cleanup play_cleanup
+  exec {PLAY_FD}<"$STATE/game.log"
+  PLAY_PENDING=""
+  while IFS= read -r -u "$PLAY_FD" _; do :; done
+  rm -f "$STATE/play.ready"
+  python3 -I "$LIVE/keypipe.py" "$STATE/play.ready" <"$STATE/play.fifo" &
+  PLAY_XPID=$!
+  exec {PLAY_XFD}>"$STATE/play.fifo"
+  for i in $(seq 1 100); do
+    [ -e "$STATE/play.ready" ] && break
+    sleep 0.1
+  done
+  [ -e "$STATE/play.ready" ] || die "play: the key sender did not start"
+  while IFS= read -r -u "$PLAY_FD" _; do :; done
+  PLAY_PENDING=""
+  HELD_KEYS=""
+  PLAY_LATE=0
+  play_await 0
+  PLAY_LATE=0
+  PLAY_BASE="$PLAY_STEP"
+  for ((i = 1; i < players; i++)); do
+    play_set Up
+    sleep 0.15
+    play_set ""
+    sleep 0.3
+  done
+  play_set z
+  play_until "Starting Game"
+  play_set ""
+  sleep 0.5
+  play_set z
+  play_until "Loaded level"
+  while read -r count keys; do
+    [ "$keys" != - ] || keys=""
+    for ((i = 0; i < count; i++)); do
+      play_menu_press "$keys"
+      frames=$((frames + 1))
+    done
+  done <<<"$steps"
+  play_set ""
+  exec {PLAY_XFD}>&-
+  PLAY_XFD=""
+  wait "$PLAY_XPID" || sender_rc=$?
+  PLAY_XPID=""
+  play_cleanup
+  [ "$sender_rc" = 0 ] || die "play: the key sender died"
+  restore_traps
+  trap - PIPE
+  echo "play: $frames frames, $PLAY_LATE late"
+  [ "$PLAY_LATE" = 0 ]
 }
 
 cmd_shot() {
@@ -558,13 +800,14 @@ main() {
   case "$cmd" in
     start) cmd_start "$@" ;;
     keys) cmd_keys "$@" ;;
+    play) cmd_play "$@" ;;
     shot) cmd_shot "$@" ;;
     record) cmd_record "$@" ;;
     stop) cmd_stop "$@" ;;
     smoke) cmd_smoke "$@" ;;
     golden) cmd_golden "$@" ;;
     *)
-      echo "usage: drive.sh start [--level <n>] [--score <n>] | keys <script> | shot <path> | record <seconds> <path> | stop | smoke | golden <path>" >&2
+      echo "usage: drive.sh start [--level <n>] [--score <n>] | keys <script> | play <script.inputs> | shot <path> | record <seconds> <path> | stop | smoke | golden <path>" >&2
       exit 2
       ;;
   esac

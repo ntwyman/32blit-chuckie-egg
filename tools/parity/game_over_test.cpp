@@ -57,6 +57,34 @@ static Game gameOver() {
 
 int main() {
   {
+    Game game(1, 0);
+    blit::Size screen(320, 240);
+    game.SetScreenSize(screen);
+    game.Step(BUTTON_A);
+    game.Step(0);
+    game.Step(BUTTON_A);
+    game.SkipLevel();
+    steps(game, 2, 0);
+    expect(game.Snapshot().level == 1 && game.Snapshot().bonus == 2000, "a skipped level 1 leads to level 2 with a 2,000 bonus");
+    for (int life = 0; life < 5; life++) {
+      steps(game, 100, 0);
+      steps(game, 60, BUTTON_RIGHT);
+      steps(game, 93, BUTTON_LEFT);
+      game.Step(0);
+    }
+    expect(game.State() == GameState::GAME_OVER, "five deaths on level 2 show game over");
+    steps(game, LOCK_STEPS, 0);
+    game.Step(BUTTON_A);
+    game.Step(0);
+    game.Step(BUTTON_A);
+    game.Step(0);
+    game.Step(BUTTON_A);
+    FrameTrace t = game.Snapshot();
+    expect(game.State() == GameState::LEVEL, "a new game starts after game over");
+    expect(t.level == 0 && t.bonus == 1000 && t.lives == 5 && t.score == 0,
+           "the new game starts on level 1 with its own bonus, lives and score, not the level reached");
+  }
+  {
     Game game = gameOver();
     expect(game.State() == GameState::GAME_OVER, "the fifth death shows game over");
     game.Step(BUTTON_A);

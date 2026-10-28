@@ -94,6 +94,7 @@ public:
 #ifdef CHUCKIE_PARITY
   FrameTrace Snapshot();
   GameState State() const { return state; }
+  void SkipLevel() { skipLevel = true; }
 #endif
 
 private:
@@ -108,6 +109,8 @@ private:
 
   void startGame();
   void loadLevel();
+  void completeLevel();
+  bool levelComplete() const;
   void loseLife();
   bool henryDied() const;
   Player &player() { return playerData[currentPlayer]; }
@@ -118,6 +121,8 @@ private:
   void renderHenry(blit::Surface &);
   void renderLifts(blit::Surface &);
   void renderBigBird(blit::Surface &);
+  const blit::Rect &cageSprite() const;
+  blit::Point cagePosition();
   void moveHenry();
   void moveBigDuck();
   void moveDucks();
@@ -173,6 +178,8 @@ private:
 
   // state
   bool isDead{};
+  bool levelDone{};
+  bool skipLevel{};
   bool extraLife{};
   uint8_t startLevel{};
   uint32_t startScore{};

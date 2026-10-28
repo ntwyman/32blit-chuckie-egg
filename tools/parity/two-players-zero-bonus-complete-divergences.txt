@@ -1,0 +1,7 @@
+# What `tools/parity/run.sh --script two-players-zero-bonus-complete` reports. run.sh fails when the report changes.
+# Each indented line is a field, the first frame it differs on, and both values. The last line counts and hashes every difference.
+# Rewrite it with `run.sh --record two-players-zero-bonus-complete` only for a change the PR means to make.
+two-players-zero-bonus-complete DIVERGES at frame 8520 field bonus
+  bonus first differs at frame 8520: port 30, original 40
+  score first differs at frame 8601: port 10, original 0
+  every difference: 101 field values over 101 frames, sha256 c6c44f4e5635f485

@@ -1,0 +1,8 @@
+# Henry touches the hen on level 4 on the same frame the skip key completes the level. Upstream tests for a death before the level
+# complete (chuckie.c:1135, :1155), so Henry loses a life and the pending skip (cheat) stays set: the respawned level completes at
+# once. Pins that order in Game::Step and that a death keeps the pending skip.
+level 4
+5 -
+24 left
+1 left+skip
+10 -

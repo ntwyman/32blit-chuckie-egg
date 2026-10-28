@@ -46,7 +46,10 @@ void PollKeys(void) {
     fflush(stdout);
     exit(0);
   }
-  buttons = script.buttons[frame];
+  buttons = script.buttons[frame] & INPUTS_BUTTONS;
+  if (script.buttons[frame] & INPUTS_SKIP) {
+    cheat = 1;
+  }
 }
 
 void RenderFrame(void) {
@@ -64,6 +67,7 @@ void RenderFrame(void) {
   t.bonus = digits(bonus, 4);
   t.timer = digits(timer_ticks, 3);
   t.player = current_player;
+  t.level = current_level;
   t.has_lift = have_lift;
   if (have_lift) {
     t.lift_x = lift_x;
@@ -72,6 +76,10 @@ void RenderFrame(void) {
   }
   t.duck_timer = duck_timer;
   t.current_duck = current_duck;
+  t.big_duck_x = big_duck_x;
+  t.big_duck_y = big_duck_y;
+  t.big_duck_dir = big_duck_dir;
+  t.big_duck_frame = big_duck_frame;
   t.hens = num_ducks;
   for (int i = 0; i < num_ducks; i++) {
     t.hen[i].x = duck[i].x;

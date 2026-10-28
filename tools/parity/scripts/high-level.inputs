@@ -1,0 +1,11 @@
+# Start on level 256, the last level the HUD can show, where the timer (100), the bonus (9,000) and the egg value (1,000) sit at
+# their limits. Take the grain beside the start and skip the level. Upstream keeps the level in a byte (chuckie.c:43), so the
+# game goes to level 1, with the 9,000 bonus that level 256 earned (chuckie.c:1050). Then take the egg beside the start of level 1.
+level 256
+5 -
+12 left
+20 -
+1 skip
+5 -
+28 left
+20 -

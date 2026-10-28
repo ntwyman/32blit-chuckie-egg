@@ -14,6 +14,7 @@ game-over DIVERGES at frame 1265 field henry_x
   bonus first differs at frame 1265: port 1720, original 2000
   timer first differs at frame 1265: port 868, original 900
   duck_timer first differs at frame 1265: port 5, original 1
+  big_duck_frame first differs at frame 1265: port 1, original 0
   hen0_x first differs at frame 1265: port 72, original 48
   hen0_y first differs at frame 1265: port 156, original 196
   hen0_mode first differs at frame 1265: port 3, original 0
@@ -23,4 +24,4 @@ game-over DIVERGES at frame 1265 field henry_x
   hen2_x first differs at frame 1265: port 140, original 144
   hen2_y first differs at frame 1265: port 76, original 116
   hen2_mode first differs at frame 1265: port 1, original 0
-  every difference: 21 field values over 1 frames, sha256 3396c4a7b25142f7
+  every difference: 22 field values over 1 frames, sha256 87169139ae952a66

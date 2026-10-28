@@ -1,0 +1,6 @@
+# Take the grain and then the egg on level 20, where an egg is worth 500 because current_level is 19 (chuckie.c:360).
+level 20
+5 -
+21 right
+1 right+jump
+30 -

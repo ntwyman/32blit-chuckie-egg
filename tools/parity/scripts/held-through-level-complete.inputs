@@ -1,0 +1,10 @@
+# Hold right through a level skip. The port ignores a button held into a level start until it is released (chuckie.c:218 sets
+# button_ack), and that includes the start of the next level, so Henry stays at the start of level 2 while the original walks on.
+# The last 40 frames press right again, so a port that never clears the ack after the level change would not move and would differ more.
+level 1
+5 -
+10 right
+1 right+skip
+30 right
+5 -
+40 right
