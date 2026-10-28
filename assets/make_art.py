@@ -3,7 +3,6 @@
 # Copyright (C) 2020-2026 ntwyman
 #
 # Draws logo.png, splash.png and icon.png from the glyph tables below. Run it from any folder: python3 assets/make_art.py
-# Every colour is explicit, so the output does not depend on the Pillow version or its quantizer.
 import os
 from PIL import Image
 
@@ -41,7 +40,6 @@ def word_width(word, scale):
     return sum((len(GLYPHS[l][0]) + 1) * scale for l in word) - scale
 
 
-# The splash's "32BLIT PORT", 61 by 8 pixels. 1 and 2 are the two greens of the splash palette, . is the background.
 PORT_TEXT = [
     ".1112..2112..11112.1.....1.2111112..11112.21112..111122111112",
     "22..1..1.21..1..21.1.....1....1.....1..2121...12.1..21...1...",

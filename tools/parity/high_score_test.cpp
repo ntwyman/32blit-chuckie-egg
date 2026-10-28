@@ -289,7 +289,6 @@ static void twoPlayers() {
          "equal scores rank player 1 above player 2");
 }
 
-// Two players on 100 each, between the 9th entry (10,000) and the 10th (50). Player 1 takes rank 10 and pushes player 2 off.
 static void pushedOff() {
   Game game = titleGame(3, 100);
   game.SkipTitle();
