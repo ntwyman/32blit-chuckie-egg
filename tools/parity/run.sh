@@ -11,7 +11,7 @@ EXPECTED="$PARITY/expected-divergent.txt"
 TRACES="$BUILD/parity/traces"
 
 usage() {
-  echo "usage: run.sh --all | --script <name> | --record <name> | --clock | --game-over | --sound | --self-test" >&2
+  echo "usage: run.sh --all | --script <name> | --record <name> | --clock | --game-over | --sound | --high-scores | --title | --self-test" >&2
   exit 2
 }
 
@@ -171,6 +171,34 @@ record() {
   echo "run.sh: wrote $(pinned "$name")"
 }
 
+# The title adds states in front of the player-count screen, so a trace must not change when the port driver
+# starts there. This runs the port on every script with --start-at-title and compares it with the same run
+# that skips the title, and checks that the idle script still passes against the original.
+title_check() {
+  local script name status=0
+  mkdir -p "$TRACES"
+  for script in "$PARITY"/scripts/*.inputs; do
+    name="$(basename "$script" .inputs)"
+    "$BUILD/parity-port" --start-at-title "$script" >"$TRACES/$name.title" 2>/dev/null || {
+      echo "run.sh: the port driver failed on $name with --start-at-title" >&2
+      return 2
+    }
+    "$BUILD/parity-port" "$script" >"$TRACES/$name.notitle" 2>/dev/null
+    if ! cmp -s "$TRACES/$name.title" "$TRACES/$name.notitle"; then
+      echo "run.sh: $name differs when the title is skipped by --start-at-title" >&2
+      status=1
+    fi
+  done
+  local out
+  out="$(compare "$TRACES/idle.title" "$TRACES/idle.original")"
+  [ "${out%%$'\n'*}" = PASS ] || {
+    echo "run.sh: idle does not pass after the title is skipped: ${out%%$'\n'*}" >&2
+    status=1
+  }
+  [ "$status" = 0 ] && echo "title: ok"
+  return "$status"
+}
+
 self_test() {
   local d status=0 got
   d="$(mktemp -d)"
@@ -232,6 +260,8 @@ main() {
       "$BUILD/parity-clock" || status=1
       "$BUILD/parity-gameover" || status=1
       "$BUILD/parity-sound" || status=1
+      "$BUILD/parity-highscores" || status=1
+      title_check || status=1
       ;;
     --script)
       [ $# -eq 2 ] || usage
@@ -259,6 +289,16 @@ main() {
       [ $# -eq 1 ] || usage
       build
       "$BUILD/parity-sound" || status=1
+      ;;
+    --high-scores)
+      [ $# -eq 1 ] || usage
+      build
+      "$BUILD/parity-highscores" || status=1
+      ;;
+    --title)
+      [ $# -eq 1 ] || usage
+      build
+      title_check || status=1
       ;;
     --self-test)
       [ $# -eq 1 ] || usage

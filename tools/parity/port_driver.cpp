@@ -40,12 +40,19 @@ APIData &api_data = host_api_data;
 
 static const int BATCH_RUNS = 200;
 
-static const char usage[] = "port_driver [--level <n>] [--score <n>] [--players <n>] <script.inputs> [--bench <frames>]";
+static const char usage[] = "port_driver [--level <n>] [--score <n>] [--players <n>] [--start-at-title] <script.inputs> [--bench <frames>]";
+static bool startAtTitle = false;
 
 static void enterLevel(Game &game, int players) {
   blit::Size screen(320, 240);
   game.SetScreenSize(screen);
   game.InitAudio();
+  if (startAtTitle) {
+    game.Step(BUTTON_A);
+    game.Step(0);
+  } else {
+    game.SkipTitle();
+  }
   for (int i = 1; i < players; i++) {
     game.Step(BUTTON_UP);
     game.Step(0);
@@ -120,6 +127,14 @@ static int bench(const Inputs &in, size_t frames) {
 }
 
 int main(int argc, char **argv) {
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "--start-at-title") == 0) {
+      startAtTitle = true;
+      memmove(&argv[i], &argv[i + 1], (size_t)(argc - i) * sizeof(argv[0]));
+      argc--;
+      i--;
+    }
+  }
   int next;
   Inputs in = inputs_from_args(argc, argv, usage, &next);
   bool benchmark = next < argc && strcmp(argv[next], "--bench") == 0;

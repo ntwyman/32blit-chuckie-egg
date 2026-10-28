@@ -9,6 +9,7 @@ set(PROJECT_SOURCE
   chuckie_egg.cpp
   frame_clock.hpp
   game.cpp game.hpp
+  high_scores.cpp high_scores.hpp
   levels.cpp levels.hpp
   sprites.cpp sprites.hpp
 )
@@ -61,7 +62,7 @@ if(CHUCKIE_PARITY)
   file(GLOB PARITY_PATCHES CONFIGURE_DEPENDS ${PARITY}/patches/*.patch)
   list(SORT PARITY_PATCHES)
 
-  add_executable(parity-port ${PARITY}/port_driver.cpp game.cpp levels.cpp sprites.cpp)
+  add_executable(parity-port ${PARITY}/port_driver.cpp game.cpp high_scores.cpp levels.cpp sprites.cpp)
   target_include_directories(parity-port PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PARITY})
   target_compile_definitions(parity-port PRIVATE CHUCKIE_PARITY)
   target_link_libraries(parity-port BlitEngine)
@@ -96,20 +97,25 @@ if(CHUCKIE_PARITY)
     target_compile_options(parity-original PRIVATE -Wno-stringop-overflow)
   endif()
 
-  add_executable(parity-gameover ${PARITY}/game_over_test.cpp game.cpp levels.cpp sprites.cpp)
+  add_executable(parity-gameover ${PARITY}/game_over_test.cpp game.cpp high_scores.cpp levels.cpp sprites.cpp)
   target_include_directories(parity-gameover PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   target_compile_definitions(parity-gameover PRIVATE CHUCKIE_PARITY)
   target_link_libraries(parity-gameover BlitEngine)
 
-  add_executable(parity-sound ${PARITY}/sound_test.cpp game.cpp levels.cpp sprites.cpp)
+  add_executable(parity-sound ${PARITY}/sound_test.cpp game.cpp high_scores.cpp levels.cpp sprites.cpp)
   target_include_directories(parity-sound PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   target_compile_definitions(parity-sound PRIVATE CHUCKIE_PARITY)
   target_link_libraries(parity-sound BlitEngine)
 
+  add_executable(parity-highscores ${PARITY}/high_score_test.cpp game.cpp high_scores.cpp levels.cpp sprites.cpp)
+  target_include_directories(parity-highscores PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_compile_definitions(parity-highscores PRIVATE CHUCKIE_PARITY)
+  target_link_libraries(parity-highscores BlitEngine)
+
   add_executable(parity-clock ${PARITY}/clock_test.cpp)
   target_include_directories(parity-clock PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-  add_custom_target(parity DEPENDS parity-port parity-original parity-clock parity-gameover parity-sound)
+  add_custom_target(parity DEPENDS parity-port parity-original parity-clock parity-gameover parity-sound parity-highscores)
 endif()
 
 # The SDK's web shell uses FS and IDBFS from its preRun, but newer Emscripten

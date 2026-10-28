@@ -63,6 +63,7 @@ static int expectedNoiseHz(int period) {
 
 static void checkConfig() {
   Game game(1, 0);
+  game.SkipTitle();
   game.InitAudio();
   const AudioChannel &beep = blit::channels[0];
   const AudioChannel &noise = blit::channels[1];
@@ -108,6 +109,7 @@ static void play(Counts &counts, uint8_t direction, int jumpEvery) {
   AudioChannel &noise = blit::channels[1];
   silence();
   Game game(1, 0);
+  game.SkipTitle();
   enter(game);
   silence();
   int sinceNoise = -1;
@@ -159,6 +161,7 @@ static void checkEndsWithoutStep() {
   AudioChannel &noise = blit::channels[1];
   silence();
   Game game(1, 0);
+  game.SkipTitle();
   enter(game);
   silence();
   for (int step = 0; step < 220 && noise.adsr_phase == ADSRPhase::OFF; step++) {

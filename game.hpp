@@ -4,12 +4,13 @@
 
 #pragma once
 #include "32blit.hpp"
+#include "high_scores.hpp"
 #ifdef CHUCKIE_PARITY
 #include "tools/parity/trace.h"
 #endif
 #include <cstdint>
 
-enum GameState {HOW_MANY, READY_PLAYER, LEVEL, GAME_OVER};
+enum GameState {TITLE, HOW_MANY, READY_PLAYER, LEVEL, GAME_OVER, NAME_ENTRY};
 
 #define ROWS 25
 #define COLUMNS 20
@@ -99,6 +100,16 @@ public:
   explicit Game(unsigned int hudLevel, uint32_t startScore = 0);
   void SetScreenSize(blit::Size &);
   void InitAudio();
+  void SetLogo(blit::Surface *surface) { logo = surface; }
+  // The save holds the top ten. LoadScores keeps the default table when the data is not a valid save.
+  bool LoadScores(const uint8_t *data, size_t size) { return scores.Decode(data, size); }
+  void EncodeScores(uint8_t *out) const { scores.Encode(out); }
+  // True once for each change to the table, so the caller writes the save only then.
+  bool TakeScoresChanged() {
+    bool changed = scoresChanged;
+    scoresChanged = false;
+    return changed;
+  }
   int BeepNote() const { return beepNote; }
   int NoiseNote() const { return noiseNote; }
   void Render(blit::Surface &);
@@ -107,6 +118,11 @@ public:
   FrameTrace Snapshot();
   GameState State() const { return state; }
   void SkipLevel() { skipLevel = true; }
+  void SkipTitle() { state = GameState::HOW_MANY; }
+  const HighScores &Scores() const { return scores; }
+  const char *EntryName() const { return entryName; }
+  int EntryCursor() const { return entryCursor; }
+  int EntryPlayer() const { return entryPlayer; }
 #endif
 
 private:
@@ -133,6 +149,14 @@ private:
   void renderHenry(blit::Surface &);
   void renderLifts(blit::Surface &);
   void renderBigBird(blit::Surface &);
+  void renderTitle(blit::Surface &);
+  void renderTable(blit::Surface &, const HighScores &, int highlight);
+  void renderNameEntry(blit::Surface &);
+  void beginTitle(unsigned int page);
+  void startEntry(unsigned int player);
+  void stepTitle();
+  void stepNameEntry();
+  void finishEntry();
   const blit::Rect &cageSprite() const;
   blit::Point cagePosition();
   void moveHenry();
@@ -170,8 +194,19 @@ private:
   blit::Point upstreamPosition(const blit::Point &);
 #endif
 
-  GameState state = GameState::HOW_MANY;
+  GameState state = GameState::TITLE;
   unsigned int gameOverLock{};
+
+  // Title and high scores
+  blit::Surface *logo = nullptr;
+  HighScores scores;
+  bool scoresChanged{};
+  unsigned int titlePage{};
+  unsigned int titleSteps{};
+  char entryName[HS_NAME_LEN + 1]{};
+  int entryCursor{};
+  unsigned int entryPlayer{};
+  unsigned int entryHold{};
 
   // Screen
   blit::Size screenSize{};

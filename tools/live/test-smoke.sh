@@ -84,7 +84,7 @@ make_wrong_goldens() {
     record_start "$TMP/wrong.mkv" >/dev/null 2>&1
     stop_procs
     frame_hashes "$TMP/wrong.mkv" | awk '$0 != prev { runs++; start[runs] = NR - 1 } { prev = $0; last = NR - 1 }
-      END { print start[1] + 5, start[2] + 5, (runs >= 4 ? start[4] : last) }' >"$TMP/wrong.idx"
+      END { print start[2] + 5, start[3] + 5, (runs >= 5 ? start[5] : last) }' >"$TMP/wrong.idx"
     read -r how ready later <"$TMP/wrong.idx"
     frame_png "$TMP/wrong.mkv" "$how" "$TMP/wrong-howmany.png"
     frame_png "$TMP/wrong.mkv" "$ready" "$TMP/wrong-ready.png"

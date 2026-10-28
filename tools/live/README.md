@@ -18,6 +18,8 @@
 | `drive.sh spectrogram <audio.raw> <path.png>` | Renders a capture from `start --audio` as a spectrogram, 0 to 3,000 Hz against time, with `ffmpeg`. |
 | `drive.sh keys <script>` | Sends a key script. A `<script>` with a `/` is a path. A bare name is looked up in `tools/live/scripts/` (as given, then with `.keys`) and only then in the current directory. Use `./name.keys` for a file in the current directory. An empty script does nothing and exits zero. |
 | `drive.sh play <script.inputs>` | Replays a trace-diff input script (`tools/parity/scripts/*.inputs`) on a fresh game, one game step per script frame. See "Frame-exact replay". |
+| `drive.sh save-path` | Prints the lane's save file, `$LIVE_DATA/ntwyman/Chuckie Egg/save0`. The game keeps its high scores there. See "The save file". |
+| `drive.sh forget-save` | Deletes the lane's save folder, so the next game starts with the default high scores. It refuses while the game runs. |
 | `drive.sh shot <path>` | Saves a screenshot of the display as a PNG. |
 | `drive.sh record <seconds> <path>` | Records the display as an MP4 for that long. It blocks, so run it in the background while a key script plays. INT or TERM stops the recorder and removes `record.pid`. A non-interactive shell starts a background `record &` with INT ignored, so cancel it with TERM. A second `record` on a lane that is already recording fails. |
 | `drive.sh stop` | Stops the game and `Xvfb`, and removes `play.fifo` and `play.ready`. It exits zero when nothing runs. |
@@ -55,11 +57,11 @@ wait <ms>
 
 Join keys with `+` to hold them together, as in `left+up 330`.
 
-From boot, `z` at "How many players" and `z` at "Ready player" starts play. `scripts/start-one-player.keys` does this. Run it first, then another script.
+From boot, `z` at the title, `z` at "How many players", and `z` at "Ready player" starts play. `scripts/start-one-player.keys` does this. Run it first, then another script.
 
 | Script | What it does |
 | --- | --- |
-| `start-one-player.keys` | Starts a one-player game and lands on level 1. |
+| `start-one-player.keys` | Starts a one-player game and lands on level 1, from the title. |
 | `walk-right.keys` | Walks Henry right along the floor for two seconds. |
 | `jump.keys` | Holds the jump key for 500 ms. |
 | `climb-first-ladder.keys` | Walks to the big ladder on level 1 with up held, so Henry grabs it, then climbs. |
@@ -70,7 +72,7 @@ Henry grabs a ladder only on one exact pixel, and the game steps on wall-clock t
 
 `keys` times its presses in milliseconds, and the game steps on wall-clock time, so it cannot press a key for an exact number of steps. `play` can. It reads the game's `Step <n>` lines from `game.log` and sets the keys for frame *i* right after step *s*+*i* is logged, so they are down for exactly step *s*+*i*+1. The same script then gives the trace diff and the live game the same input, frame for frame.
 
-- Start a fresh game first. `play` presses A at "How many players" and at "Ready player" itself, and presses up once for each player past the first in a `players` line. A `level` or `score` line must match what you started with (`start --level`, `start --score`). It ignores both.
+- Start a fresh game first. `play` presses A at the title, at "How many players" and at "Ready player" itself, and presses up once for each player past the first in a `players` line. A `level` or `score` line must match what you started with (`start --level`, `start --score`). It ignores both.
 - A one-step press did not register reliably at the menus, so scripts for `play` hold every key for two frames or more.
 - It prints `play: <n> frames, <k> late`, and exits 1 when `k` is not 0. A late frame is one where the game logged a step after the expected one, so the script's input slipped.
 - A replay that reads a step line more than 12 ms after the game logged it counts that frame as late too, so a stalled replay fails.
@@ -98,13 +100,19 @@ The capture starts when the game opens its audio device, a moment before the fir
 
 The dev container needs nothing for this. A PulseAudio null sink, the fallback if the `disk` driver wrote nothing, is not installed.
 
+## The save file
+
+The game keeps its ten best scores with `blit::write_save`. On SDL that is the file `save0` in SDL's preference folder for author `ntwyman` and title `Chuckie Egg`, which is `$XDG_DATA_HOME/ntwyman/Chuckie Egg/save0` (`~/.local/share/...` when `XDG_DATA_HOME` is unset). `drive.sh` sets `XDG_DATA_HOME` to `$LIVE_DATA` for the game, so a lane never reads or writes the home folder's save. `LIVE_DATA` defaults to `/tmp/chuckie-live-data-<display>`.
+
+`stop` keeps that folder, so a restart finds the table. `forget-save` deletes it. The file is 130 bytes. The game writes it only when a name entry finishes and reads it once at start.
+
 ## Running lanes in parallel
 
 `LIVE_LANE=<n>` puts the game on display `:<99+n>` with its own state directory, so lanes never share a display. `LIVE_DISPLAY` sets the display number directly.
 
 ## How `smoke` stays exact
 
-The game steps on wall-clock time, so a screenshot at a fixed delay shows a different frame each run. `smoke` records the display at 100 frames per second while `start-one-player.keys` runs. The recording shows three screens in order: "How many players", "Ready player", and level 1. `smoke` takes the first frame of the third run of identical frames, writes it to `smoke.png`, and compares that one frame with the golden image using `compare -metric AE`. Any differing pixel fails the run. It does not search other frames.
+The game steps on wall-clock time, so a screenshot at a fixed delay shows a different frame each run. `smoke` records the display at 100 frames per second while `start-one-player.keys` runs. The recording shows four screens in order: the title, "How many players", "Ready player", and level 1. `smoke` takes the first frame of the fourth run of identical frames, writes it to `smoke.png`, and compares that one frame with the golden image using `compare -metric AE`. Any differing pixel fails the run. It does not search other frames.
 
 `smoke` retries only when the run itself failed: the game or its window did not start, the recorder died, or the recording has no level-1 frame. It prints why before each retry. A pixel mismatch fails at once.
 
@@ -124,6 +132,7 @@ To regenerate the golden image after a deliberate change to the first frame of l
 | `LIVE_DISPLAY` | `99+lane` | Display number. |
 | `LIVE_SCREEN` | `640x480x24` | `Xvfb` screen. Use 640x480 or larger for the other commands. `smoke` and `golden` need exactly `640x480x24`. |
 | `LIVE_BIN` | `build.sdl/chuckie-egg` | The game binary. |
+| `LIVE_DATA` | `/tmp/chuckie-live-data-<display>` | The game's `XDG_DATA_HOME`, where it keeps its save. `stop` keeps it. |
 | `LIVE_STATE` | `/tmp/chuckie-live-<display>` | Pid files, logs, and recordings. |
 | `LIVE_OUT_DIR` | `tools/live/out/lane<n>` | Where `smoke` writes `smoke.png`. |
 | `LIVE_SMOKE_ATTEMPTS` | `5` | How many runs `smoke` tries when a run itself fails. |

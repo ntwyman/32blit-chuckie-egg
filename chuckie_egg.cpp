@@ -18,6 +18,13 @@ void init() {
   game.SetScreenSize(screen.bounds);
   game.InitAudio();
   screen.sprites = Surface::load(asset_sprites);
+  game.SetLogo(Surface::load(asset_logo));
+  uint8_t save[HS_SAVE_SIZE];
+  if (read_save(reinterpret_cast<char *>(save), sizeof(save))) {
+    if (!game.LoadScores(save, sizeof(save))) {
+      debugf("Ignored an unusable save, using the default high scores\r\n");
+    }
+  }
 }
 
 static uint8_t readButtons() {
@@ -55,6 +62,12 @@ void update(uint32_t time) {
       debugf("Noise note %d\r\n", game.NoiseNote());
     }
 #endif
+  }
+  if (game.TakeScoresChanged()) {
+    uint8_t save[HS_SAVE_SIZE];
+    game.EncodeScores(save);
+    write_save(reinterpret_cast<const char *>(save), sizeof(save));
+    debugf("Saved the high scores\r\n");
   }
   if (steps > 0) {
     step_count += steps;
